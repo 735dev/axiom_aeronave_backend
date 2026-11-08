@@ -1,0 +1,1739 @@
+{
+  "_comment": "Semillas iniciales. Orden: modules, permissions, roles, users, catalogs, ticket_types. is_system=true no se elimina ni desactiva desde la API. Al cargar cada ticket_type el backend genera tickets.view/create/edit.<code>.",
+  "modules": [
+    {
+      "code": "tickets",
+      "name": "Tickets",
+      "description": "Operaciones, gastos, reportes: todo el trabajo del sistema",
+      "is_system": true,
+      "route": "/tickets",
+      "icon": "ticket",
+      "menu_permission": "tickets.view",
+      "show_in_menu": true,
+      "sort_order": 1
+    },
+    {
+      "code": "notifications",
+      "name": "Avisos",
+      "description": "Notificaciones por rol",
+      "is_system": true,
+      "route": "/avisos",
+      "icon": "bell",
+      "menu_permission": "notifications.view",
+      "show_in_menu": false,
+      "sort_order": 2
+    },
+    {
+      "code": "users",
+      "name": "Usuarios",
+      "description": "Personal con acceso al sistema",
+      "is_system": true,
+      "route": "/usuarios",
+      "icon": "users",
+      "menu_permission": "users.view",
+      "show_in_menu": true,
+      "sort_order": 3
+    },
+    {
+      "code": "roles",
+      "name": "Roles y permisos",
+      "description": "Perfiles de acceso y permisología",
+      "is_system": true,
+      "route": "/roles",
+      "icon": "shield",
+      "menu_permission": "roles.view",
+      "show_in_menu": false,
+      "sort_order": 4
+    },
+    {
+      "code": "catalogs",
+      "name": "Catálogos",
+      "description": "Listas que alimentan los formularios",
+      "is_system": true,
+      "route": "/catalogos",
+      "icon": "database",
+      "menu_permission": "catalogs.view",
+      "show_in_menu": true,
+      "sort_order": 5
+    },
+    {
+      "code": "analytics",
+      "name": "Analítica",
+      "description": "Totales de gasto y actividad del sistema",
+      "route": "/analitica",
+      "icon": "chart",
+      "menu_permission": "analytics.view",
+      "show_in_menu": true,
+      "sort_order": 6,
+      "is_system": true,
+      "is_active": true
+    },
+    {
+      "code": "audit",
+      "name": "Auditoría",
+      "description": "Bitácora de todo lo que pasa en el sistema",
+      "route": "/auditoria",
+      "icon": "history",
+      "menu_permission": "audit.view",
+      "show_in_menu": true,
+      "sort_order": 7,
+      "is_system": true,
+      "is_active": true
+    },
+    {
+      "code": "quicklog",
+      "name": "Bitácora de vuelo",
+      "description": "Horarios reales, novedad y fotos del vuelo en pocos toques",
+      "route": "/bitacora-rapida",
+      "icon": "takeoff",
+      "menu_permission": "tickets.create",
+      "show_in_menu": true,
+      "sort_order": 8,
+      "is_system": true,
+      "is_active": true
+    },
+    {
+      "code": "passengers",
+      "name": "Pasajeros",
+      "description": "En qué operaciones viajó una persona",
+      "route": "/pasajeros",
+      "icon": "users",
+      "menu_permission": "tickets.view",
+      "show_in_menu": true,
+      "sort_order": 9,
+      "is_system": true,
+      "is_active": true
+    },
+    {
+      "code": "review",
+      "name": "Validación",
+      "description": "Comprobantes leídos en espera de confirmación",
+      "route": "/validacion",
+      "icon": "review",
+      "menu_permission": "tickets.edit",
+      "show_in_menu": true,
+      "sort_order": 10,
+      "is_system": true,
+      "is_active": true
+    },
+    {
+      "code": "reconciliation",
+      "name": "Conciliación",
+      "description": "Cruce entre gastos y comprobantes validados",
+      "route": "/conciliacion",
+      "icon": "scale",
+      "menu_permission": "analytics.view",
+      "show_in_menu": true,
+      "sort_order": 11,
+      "is_system": true,
+      "is_active": true
+    },
+    {
+      "code": "rules",
+      "name": "Reglas",
+      "description": "Condiciones que el sistema aplica sobre lo cargado",
+      "route": "/reglas",
+      "icon": "gavel",
+      "menu_permission": "ticket_types.manage",
+      "show_in_menu": true,
+      "sort_order": 12,
+      "is_system": true,
+      "is_active": true
+    }
+  ],
+  "permissions": [
+    {
+      "code": "tickets.view",
+      "name": "Ver tickets",
+      "module_code": "tickets",
+      "is_system": true
+    },
+    {
+      "code": "tickets.create",
+      "name": "Crear tickets",
+      "module_code": "tickets",
+      "is_system": true
+    },
+    {
+      "code": "tickets.edit",
+      "name": "Editar y cambiar estado de tickets",
+      "module_code": "tickets",
+      "is_system": true
+    },
+    {
+      "code": "tickets.decide_any",
+      "name": "Registrar decisiones de pasos de cualquier rol",
+      "module_code": "tickets",
+      "is_system": true
+    },
+    {
+      "code": "ticket_types.manage",
+      "name": "Definir tipos de ticket y sus formularios",
+      "module_code": "tickets",
+      "is_system": true
+    },
+    {
+      "code": "notifications.view",
+      "name": "Ver avisos",
+      "module_code": "notifications",
+      "is_system": true
+    },
+    {
+      "code": "users.view",
+      "name": "Ver usuarios",
+      "module_code": "users",
+      "is_system": true
+    },
+    {
+      "code": "users.manage",
+      "name": "Crear y editar usuarios",
+      "module_code": "users",
+      "is_system": true
+    },
+    {
+      "code": "roles.view",
+      "name": "Ver roles",
+      "module_code": "roles",
+      "is_system": true
+    },
+    {
+      "code": "roles.manage",
+      "name": "Crear roles y asignar permisos",
+      "module_code": "roles",
+      "is_system": true
+    },
+    {
+      "code": "catalogs.view",
+      "name": "Ver catálogos",
+      "module_code": "catalogs",
+      "is_system": true
+    },
+    {
+      "code": "catalogs.manage",
+      "name": "Administrar catálogos",
+      "module_code": "catalogs",
+      "is_system": true
+    },
+    {
+      "code": "analytics.view",
+      "name": "Ver totales de gasto y actividad",
+      "module_code": "analytics",
+      "is_system": true
+    },
+    {
+      "code": "audit.view",
+      "name": "Ver la bitácora de auditoría",
+      "module_code": "audit",
+      "is_system": true
+    },
+    {
+      "code": "audit.export",
+      "name": "Exportar la bitácora de auditoría",
+      "module_code": "audit",
+      "is_system": true
+    },
+    {
+      "code": "reconciliation.close",
+      "name": "Cerrar períodos de conciliación",
+      "module_code": "analytics",
+      "is_system": true
+    }
+  ],
+  "roles": [
+    {
+      "code": "superuser",
+      "name": "Superusuario",
+      "description": "Acceso total. No puede eliminarse.",
+      "is_system": true,
+      "permissions": "*"
+    },
+    {
+      "code": "operations",
+      "name": "Gerencia de Operaciones",
+      "description": "Crea operaciones, consulta todo y firma el cierre.",
+      "is_system": false,
+      "permissions": [
+        "tickets.view",
+        "tickets.create",
+        "tickets.edit",
+        "tickets.decide_any",
+        "ticket_types.manage",
+        "notifications.view",
+        "catalogs.view",
+        "analytics.view"
+      ]
+    },
+    {
+      "code": "pilot",
+      "name": "Piloto",
+      "description": "Carga requerimientos y reporta novedades técnicas.",
+      "is_system": false,
+      "permissions": [
+        "tickets.view",
+        "tickets.create",
+        "tickets.edit",
+        "notifications.view"
+      ]
+    },
+    {
+      "code": "maintenance",
+      "name": "Mantenimiento",
+      "description": "Responde reportes técnicos y define el estado de la aeronave.",
+      "is_system": false,
+      "permissions": [
+        "tickets.view",
+        "tickets.edit",
+        "notifications.view"
+      ]
+    },
+    {
+      "code": "ground",
+      "name": "Apoyo en tierra",
+      "description": "Carga catering, traslados y consumibles.",
+      "is_system": false,
+      "permissions": [
+        "tickets.view",
+        "tickets.create",
+        "tickets.edit",
+        "notifications.view"
+      ]
+    },
+    {
+      "code": "admin",
+      "name": "Administración",
+      "description": "Consulta el reporte cerrado de cada operación.",
+      "is_system": false,
+      "permissions": [
+        "tickets.view",
+        "tickets.edit",
+        "notifications.view",
+        "catalogs.view",
+        "analytics.view",
+        "reconciliation.close"
+      ]
+    },
+    {
+      "code": "executive",
+      "name": "Gerencia General",
+      "description": "Autoriza reparaciones, movilizaciones y el inicio de trabajos en aeronaves.",
+      "is_system": false,
+      "permissions": [
+        "tickets.view",
+        "tickets.decide_any",
+        "notifications.view",
+        "analytics.view"
+      ]
+    }
+  ],
+  "role_type_grants": {
+    "maintenance": [
+      "tickets.edit.technical_report"
+    ]
+  },
+  "users": [
+    {
+      "full_name": "Superusuario",
+      "email": "super@transvalor.com",
+      "role_code": "superuser",
+      "location": "caracas",
+      "avatar_url": null,
+      "signature_url": null
+    },
+    {
+      "full_name": "Gerencia de Operaciones",
+      "email": "operaciones@transvalor.com",
+      "role_code": "operations",
+      "location": "caracas",
+      "avatar_url": null,
+      "signature_url": null
+    },
+    {
+      "full_name": "Cap. Rodríguez",
+      "email": "piloto@transvalor.com",
+      "role_code": "pilot",
+      "location": "charallave",
+      "aircraft_code": "YV2323",
+      "avatar_url": null,
+      "signature_url": null
+    },
+    {
+      "full_name": "Gerencia de Mantenimiento",
+      "email": "mantenimiento@transvalor.com",
+      "role_code": "maintenance",
+      "location": "charallave",
+      "avatar_url": null,
+      "signature_url": null
+    },
+    {
+      "full_name": "Apoyo en Tierra",
+      "email": "tierra@transvalor.com",
+      "role_code": "ground",
+      "location": "paramillo",
+      "avatar_url": null,
+      "signature_url": null
+    },
+    {
+      "full_name": "Administración",
+      "email": "admin@transvalor.com",
+      "role_code": "admin",
+      "location": "caracas",
+      "avatar_url": null,
+      "signature_url": null
+    }
+  ],
+  "catalogs": {
+    "expense_concepts": [
+      {
+        "code": "fuel",
+        "name": "Combustible",
+        "sort_order": 1,
+        "is_system": false
+      },
+      {
+        "code": "departure_tax",
+        "name": "Impuesto de salida",
+        "sort_order": 2,
+        "is_system": false
+      },
+      {
+        "code": "ramp",
+        "name": "Plataforma",
+        "sort_order": 3,
+        "is_system": false
+      },
+      {
+        "code": "per_diem",
+        "name": "Viáticos (DOA)",
+        "sort_order": 4,
+        "is_system": false
+      },
+      {
+        "code": "navaid",
+        "name": "Radioayuda (INAC)",
+        "sort_order": 5,
+        "is_system": true,
+        "extra": "Bloquea el despacho"
+      },
+      {
+        "code": "catering",
+        "name": "Catering",
+        "sort_order": 6,
+        "is_system": false
+      },
+      {
+        "code": "transfer",
+        "name": "Traslados",
+        "sort_order": 7,
+        "is_system": false
+      },
+      {
+        "code": "ice",
+        "name": "Hielo y consumibles",
+        "sort_order": 8,
+        "is_system": false
+      },
+      {
+        "code": "other",
+        "name": "Otros",
+        "sort_order": 9,
+        "is_system": false
+      }
+    ],
+    "units": [
+      {
+        "code": "service",
+        "name": "Servicio",
+        "sort_order": 1,
+        "is_system": false
+      },
+      {
+        "code": "liters",
+        "name": "Litros",
+        "sort_order": 2,
+        "is_system": false
+      },
+      {
+        "code": "pounds",
+        "name": "Libras",
+        "sort_order": 3,
+        "is_system": false
+      },
+      {
+        "code": "gallons",
+        "name": "Galones",
+        "sort_order": 4,
+        "is_system": false
+      }
+    ],
+    "currencies": [
+      {
+        "code": "USD",
+        "name": "Dólar",
+        "sort_order": 1,
+        "is_system": true
+      },
+      {
+        "code": "VES",
+        "name": "Bolívar",
+        "sort_order": 2,
+        "is_system": true
+      }
+    ],
+    "operation_kinds": [
+      {
+        "code": "people_transfer",
+        "name": "Traslado de personas",
+        "sort_order": 1,
+        "is_system": false
+      },
+      {
+        "code": "check_flight",
+        "name": "Vuelo de comprobación",
+        "sort_order": 2,
+        "is_system": false
+      },
+      {
+        "code": "om_a_transfer",
+        "name": "Traslado a OMAC",
+        "sort_order": 3,
+        "is_system": false
+      },
+      {
+        "code": "fuel_only",
+        "name": "Solo combustible",
+        "sort_order": 4,
+        "is_system": false
+      }
+    ],
+    "operation_scopes": [
+      {
+        "code": "domestic",
+        "name": "Nacional",
+        "sort_order": 1,
+        "is_system": true
+      },
+      {
+        "code": "international",
+        "name": "Internacional",
+        "sort_order": 2,
+        "is_system": true
+      }
+    ],
+    "aircraft_statuses": [
+      {
+        "code": "operational",
+        "name": "Operativa",
+        "sort_order": 1,
+        "is_system": true
+      },
+      {
+        "code": "watch",
+        "name": "En observación",
+        "sort_order": 2,
+        "is_system": false
+      },
+      {
+        "code": "grounded",
+        "name": "Fuera de servicio",
+        "sort_order": 3,
+        "is_system": true
+      }
+    ],
+    "aircrafts": [
+      {
+        "code": "YV2323",
+        "name": "King Air 200",
+        "sort_order": 1,
+        "is_system": false
+      },
+      {
+        "code": "YV2528",
+        "name": "Cheyenne",
+        "sort_order": 2,
+        "is_system": false
+      },
+      {
+        "code": "YV2822",
+        "name": "King Air 200",
+        "sort_order": 3,
+        "is_system": false
+      }
+    ],
+    "airports": [
+      {
+        "code": "CCS",
+        "name": "Maiquetía",
+        "sort_order": 1,
+        "is_system": false
+      },
+      {
+        "code": "PZO",
+        "name": "Puerto Ordaz",
+        "sort_order": 2,
+        "is_system": false
+      },
+      {
+        "code": "SVBC",
+        "name": "Barcelona",
+        "sort_order": 3,
+        "is_system": false
+      },
+      {
+        "code": "SVSA",
+        "name": "San Cristóbal",
+        "sort_order": 4,
+        "is_system": false
+      },
+      {
+        "code": "MDPC",
+        "name": "Punta Cana",
+        "sort_order": 5,
+        "is_system": false
+      }
+    ],
+    "locations": [
+      {
+        "code": "caracas",
+        "name": "Caracas",
+        "sort_order": 1,
+        "is_system": false
+      },
+      {
+        "code": "charallave",
+        "name": "Charallave",
+        "sort_order": 2,
+        "is_system": false
+      },
+      {
+        "code": "paramillo",
+        "name": "Paramillo",
+        "sort_order": 3,
+        "is_system": false
+      }
+    ]
+  },
+  "ticket_types": [
+    {
+      "code": "operation",
+      "name": "Operación aérea",
+      "description": "Expediente del vuelo. Agrupa todo el trabajo asociado.",
+      "is_root": true,
+      "child_type_codes": [
+        "expense",
+        "technical_report",
+        "inac_permit"
+      ],
+      "default_role_code": "operations",
+      "blocks_parent_close": false,
+      "relation_kinds": [
+        "aircraft",
+        "airport"
+      ],
+      "is_system": true,
+      "fields": [
+        {
+          "key": "date",
+          "label": "Fecha",
+          "type": "date",
+          "required": true,
+          "width": "half",
+          "sort_order": 1,
+          "role": "accounting_date"
+        },
+        {
+          "key": "control_number",
+          "label": "Número de control TVOA",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "sort_order": 2,
+          "read_only": true,
+          "help": "Asignado automáticamente por el sistema."
+        },
+        {
+          "key": "aircraft_brand",
+          "label": "Marca",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "sort_order": 3,
+          "read_only": true
+        },
+        {
+          "key": "aircraft_model",
+          "label": "Modelo",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "sort_order": 4,
+          "read_only": true
+        },
+        {
+          "key": "kind",
+          "label": "Tipo de operación",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "sort_order": 6,
+          "catalog": "operation_kinds"
+        },
+        {
+          "key": "scope",
+          "label": "Alcance",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "sort_order": 7,
+          "catalog": "operation_scopes"
+        },
+        {
+          "key": "service_type",
+          "label": "Tipo de servicio",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "sort_order": 8
+        },
+        {
+          "key": "overnight",
+          "label": "¿Pernocta?",
+          "type": "checkbox",
+          "required": false,
+          "width": "half",
+          "sort_order": 9
+        },
+        {
+          "key": "origin",
+          "label": "Origen",
+          "type": "select",
+          "required": true,
+          "width": "half",
+          "sort_order": 10,
+          "catalog": "airports"
+        },
+        {
+          "key": "destination",
+          "label": "Destino",
+          "type": "select",
+          "required": true,
+          "width": "half",
+          "sort_order": 11,
+          "catalog": "airports"
+        },
+        {
+          "key": "departure_time",
+          "label": "Hora de salida",
+          "type": "time",
+          "required": false,
+          "width": "half",
+          "sort_order": 12
+        },
+        {
+          "key": "return_time",
+          "label": "Retorno estimado",
+          "type": "time",
+          "required": false,
+          "width": "half",
+          "sort_order": 13
+        },
+        {
+          "key": "passengers",
+          "label": "Pasajeros",
+          "type": "number",
+          "required": false,
+          "width": "half",
+          "sort_order": 14
+        },
+        {
+          "key": "exchange_rate",
+          "label": "Tasa del día (Bs/USD)",
+          "type": "number",
+          "required": false,
+          "width": "half",
+          "sort_order": 15
+        },
+        {
+          "key": "manifest",
+          "label": "Manifiesto de pasajeros",
+          "type": "file",
+          "required": false,
+          "width": "full",
+          "sort_order": 16
+        },
+        {
+          "key": "service_condition",
+          "label": "Condición",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "sort_order": 17,
+          "options": [
+            {
+              "value": "round_trip",
+              "label": "Ida y vuelta"
+            },
+            {
+              "value": "drop_off",
+              "label": "Solo dejar"
+            },
+            {
+              "value": "pick_up",
+              "label": "Solo buscar"
+            },
+            {
+              "value": "overnight",
+              "label": "Pernocta"
+            },
+            {
+              "value": "stopover",
+              "label": "Escala"
+            }
+          ]
+        },
+        {
+          "key": "captain",
+          "label": "Capitán de nave",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "sort_order": 18
+        },
+        {
+          "key": "flight_time",
+          "label": "Tiempo de vuelo",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "sort_order": 19
+        },
+        {
+          "key": "fbo_processed",
+          "label": "¿Tramitado por FBO?",
+          "type": "checkbox",
+          "required": false,
+          "width": "half",
+          "sort_order": 20
+        },
+        {
+          "key": "fbo_name",
+          "label": "Nombre del FBO",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "sort_order": 21
+        },
+        {
+          "key": "dispatcher",
+          "label": "Nombre del despachador",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "sort_order": 22
+        },
+        {
+          "key": "fbo_services",
+          "label": "Servicios prestados por el FBO",
+          "type": "checkbox_group",
+          "required": false,
+          "width": "full",
+          "sort_order": 23,
+          "options": [
+            {
+              "value": "flight_plan",
+              "label": "Plan de vuelo"
+            },
+            {
+              "value": "reception",
+              "label": "Recepción de personas y cosas"
+            },
+            {
+              "value": "supplies",
+              "label": "Suministros"
+            },
+            {
+              "value": "ground_support",
+              "label": "Apoyo en tierra"
+            }
+          ]
+        },
+        {
+          "key": "foreign_support_services",
+          "label": "Asistencia FBO en el exterior",
+          "type": "checkbox_group",
+          "required": false,
+          "width": "full",
+          "sort_order": 24,
+          "options": [
+            {
+              "value": "fuel",
+              "label": "Combustible"
+            },
+            {
+              "value": "towing",
+              "label": "Remolques"
+            },
+            {
+              "value": "transfers",
+              "label": "Traslados"
+            },
+            {
+              "value": "lodging",
+              "label": "Hospedaje"
+            },
+            {
+              "value": "supplies",
+              "label": "Suministros"
+            },
+            {
+              "value": "vip",
+              "label": "Salón VIP"
+            },
+            {
+              "value": "ground_support",
+              "label": "Apoyo en tierra"
+            }
+          ]
+        },
+        {
+          "key": "ground_support_services",
+          "label": "Servicios de apoyo en tierra",
+          "type": "checkbox_group",
+          "required": false,
+          "width": "full",
+          "sort_order": 25,
+          "options": [
+            {
+              "value": "towing",
+              "label": "Remolques"
+            },
+            {
+              "value": "fuel",
+              "label": "Abastecimiento de combustible"
+            },
+            {
+              "value": "broker",
+              "label": "Broker"
+            }
+          ]
+        },
+        {
+          "key": "tow_count",
+          "label": "Cantidad de remolques",
+          "type": "number",
+          "required": false,
+          "width": "half",
+          "sort_order": 26
+        },
+        {
+          "key": "fuel_supplier",
+          "label": "Broker / proveedor de combustible",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "sort_order": 27
+        },
+        {
+          "key": "fuel_quantity",
+          "label": "Cantidad de combustible",
+          "type": "number",
+          "required": false,
+          "width": "half",
+          "sort_order": 28
+        },
+        {
+          "key": "aircraft_reported",
+          "label": "¿Reportajes de la aeronave?",
+          "type": "checkbox",
+          "required": false,
+          "width": "half",
+          "sort_order": 29
+        },
+        {
+          "key": "aircraft_availability",
+          "label": "Disponibilidad",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "sort_order": 30,
+          "options": [
+            {
+              "value": "available",
+              "label": "Disponible"
+            },
+            {
+              "value": "unavailable",
+              "label": "Indisponible"
+            }
+          ]
+        },
+        {
+          "key": "ata_failure_code",
+          "label": "Código ATA falla",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "sort_order": 31
+        },
+        {
+          "key": "failure_description",
+          "label": "Descripción de la falla",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "sort_order": 32
+        },
+        {
+          "key": "corrective_measure",
+          "label": "Medida correctiva",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "sort_order": 33,
+          "edit_permission": "tickets.edit.technical_report"
+        },
+        {
+          "key": "observations",
+          "label": "Observaciones",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "sort_order": 34
+        },
+        {
+          "key": "aircraft",
+          "label": "Matrícula",
+          "type": "select",
+          "required": true,
+          "width": "half",
+          "catalog": "aircrafts",
+          "role": "aircraft",
+          "sort_order": 35
+        },
+        {
+          "key": "passport",
+          "label": "Pasaporte",
+          "type": "file",
+          "required": false,
+          "width": "full",
+          "sort_order": 17
+        }
+      ],
+      "statuses": [
+        {
+          "code": "planned",
+          "name": "Programada",
+          "color": "info",
+          "sort_order": 1,
+          "is_initial": true,
+          "is_final": false,
+          "counts_as_committed": true
+        },
+        {
+          "code": "in_progress",
+          "name": "En curso",
+          "color": "warning",
+          "sort_order": 2,
+          "is_initial": false,
+          "is_final": false,
+          "counts_as_committed": true
+        },
+        {
+          "code": "to_sign",
+          "name": "Por firmar",
+          "color": "warning",
+          "sort_order": 3,
+          "is_initial": false,
+          "is_final": false,
+          "counts_as_committed": true
+        },
+        {
+          "code": "closed",
+          "name": "Cerrada",
+          "color": "success",
+          "sort_order": 4,
+          "is_initial": false,
+          "is_final": true,
+          "counts_as_committed": true
+        },
+        {
+          "code": "cancelled",
+          "name": "Anulada",
+          "color": "default",
+          "sort_order": 5,
+          "is_initial": false,
+          "is_final": true,
+          "counts_as_committed": false
+        }
+      ],
+      "steps": [
+        {
+          "code": "planning",
+          "name": "Planificación",
+          "role_code": "operations",
+          "required": true,
+          "sort_order": 1
+        },
+        {
+          "code": "requirements",
+          "name": "Requerimientos del piloto",
+          "role_code": "pilot",
+          "required": true,
+          "sort_order": 2
+        },
+        {
+          "code": "ground",
+          "name": "Apoyo en tierra",
+          "role_code": "ground",
+          "required": true,
+          "sort_order": 3
+        },
+        {
+          "code": "technical",
+          "name": "Reporte técnico",
+          "role_code": "pilot",
+          "required": true,
+          "sort_order": 4
+        },
+        {
+          "code": "signature",
+          "name": "Firma de cierre",
+          "role_code": "operations",
+          "required": true,
+          "sort_order": 5
+        }
+      ]
+    },
+    {
+      "code": "expense",
+      "name": "Gasto",
+      "description": "Renglón de gasto con su comprobante.",
+      "is_root": false,
+      "child_type_codes": [],
+      "default_role_code": "pilot",
+      "blocks_parent_close": false,
+      "relation_kinds": [
+        "aircraft",
+        "service"
+      ],
+      "is_system": true,
+      "fields": [
+        {
+          "key": "concept",
+          "label": "Concepto",
+          "type": "select",
+          "required": true,
+          "width": "half",
+          "sort_order": 1,
+          "catalog": "expense_concepts",
+          "role": "item"
+        },
+        {
+          "key": "amount",
+          "label": "Monto",
+          "type": "money",
+          "required": true,
+          "width": "half",
+          "sort_order": 2,
+          "role": "amount"
+        },
+        {
+          "key": "currency",
+          "label": "Moneda",
+          "type": "select",
+          "required": true,
+          "width": "half",
+          "sort_order": 3,
+          "catalog": "currencies",
+          "role": "currency"
+        },
+        {
+          "key": "quantity",
+          "label": "Cantidad",
+          "type": "number",
+          "required": false,
+          "width": "half",
+          "sort_order": 4,
+          "role": "quantity"
+        },
+        {
+          "key": "unit",
+          "label": "Unidad",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "sort_order": 5,
+          "catalog": "units",
+          "role": "unit"
+        },
+        {
+          "key": "support",
+          "label": "Comprobante",
+          "type": "file",
+          "required": false,
+          "width": "full",
+          "sort_order": 6
+        },
+        {
+          "key": "notes",
+          "label": "Observaciones",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "sort_order": 7
+        },
+        {
+          "key": "expense_date",
+          "label": "Fecha del gasto",
+          "type": "date",
+          "required": false,
+          "width": "half",
+          "role": "accounting_date",
+          "sort_order": 8
+        },
+        {
+          "key": "supplier",
+          "label": "Proveedor",
+          "type": "text",
+          "required": false,
+          "width": "full",
+          "role": "supplier",
+          "sort_order": 9
+        }
+      ],
+      "statuses": [
+        {
+          "code": "registered",
+          "name": "Registrado",
+          "color": "info",
+          "sort_order": 1,
+          "is_initial": true,
+          "is_final": false,
+          "counts_as_committed": true
+        },
+        {
+          "code": "verified",
+          "name": "Verificado",
+          "color": "success",
+          "sort_order": 2,
+          "is_initial": false,
+          "is_final": true,
+          "counts_as_committed": true
+        },
+        {
+          "code": "rejected",
+          "name": "Rechazado",
+          "color": "danger",
+          "sort_order": 3,
+          "is_initial": false,
+          "is_final": true,
+          "counts_as_committed": false
+        }
+      ],
+      "steps": [
+        {
+          "code": "verify",
+          "name": "Verificación",
+          "role_code": "admin",
+          "required": false,
+          "sort_order": 1
+        }
+      ]
+    },
+    {
+      "code": "technical_report",
+      "name": "Reporte técnico",
+      "description": "Novedad de la aeronave. Puede nacer en vuelo o en hangar.",
+      "is_root": false,
+      "child_type_codes": [],
+      "default_role_code": "maintenance",
+      "blocks_parent_close": true,
+      "relation_kinds": [
+        "aircraft",
+        "inventory"
+      ],
+      "is_system": true,
+      "fields": [
+        {
+          "key": "has_finding",
+          "label": "¿Presentó novedad?",
+          "type": "checkbox",
+          "required": false,
+          "width": "half",
+          "sort_order": 1
+        },
+        {
+          "key": "system",
+          "label": "Sistema afectado",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "sort_order": 2,
+          "options": [
+            {
+              "value": "engine",
+              "label": "Motor / planta de poder"
+            },
+            {
+              "value": "landing_gear",
+              "label": "Tren de aterrizaje"
+            },
+            {
+              "value": "avionics",
+              "label": "Aviónica"
+            },
+            {
+              "value": "hydraulic",
+              "label": "Hidráulico"
+            },
+            {
+              "value": "electric",
+              "label": "Eléctrico"
+            },
+            {
+              "value": "other",
+              "label": "Otro"
+            }
+          ]
+        },
+        {
+          "key": "ata_failure_code",
+          "label": "Código ATA falla",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "sort_order": 3
+        },
+        {
+          "key": "description",
+          "label": "Descripción de la falla",
+          "type": "textarea",
+          "required": true,
+          "width": "full",
+          "sort_order": 4
+        },
+        {
+          "key": "photo",
+          "label": "Evidencia",
+          "type": "file",
+          "required": false,
+          "width": "full",
+          "sort_order": 5
+        },
+        {
+          "key": "corrective_action",
+          "label": "Acción correctiva",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "sort_order": 6,
+          "help": "Lo llena mantenimiento. Los demás lo ven en solo lectura.",
+          "edit_permission": "tickets.edit.technical_report"
+        },
+        {
+          "key": "aircraft_status",
+          "label": "Estado de la aeronave",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "sort_order": 7,
+          "catalog": "aircraft_statuses"
+        },
+        {
+          "key": "requires_workshop",
+          "label": "¿Requiere taller externo?",
+          "type": "checkbox",
+          "required": false,
+          "width": "half",
+          "sort_order": 8
+        },
+        {
+          "key": "quotes",
+          "label": "Cotizaciones de OMA",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "sort_order": 9,
+          "edit_permission": "tickets.edit.technical_report"
+        },
+        {
+          "key": "director_authorization",
+          "label": "Autorización de Gerencia General",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "sort_order": 10,
+          "edit_permission": "tickets.decide_any"
+        },
+        {
+          "key": "observations",
+          "label": "Observaciones",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "sort_order": 11
+        },
+        {
+          "key": "actual_departure",
+          "label": "Salida real",
+          "type": "time",
+          "required": false,
+          "width": "half",
+          "sort_order": 14
+        },
+        {
+          "key": "actual_arrival",
+          "label": "Llegada real",
+          "type": "time",
+          "required": false,
+          "width": "half",
+          "sort_order": 15
+        },
+        {
+          "key": "arrival_next_day",
+          "label": "Llegó al día siguiente",
+          "type": "checkbox",
+          "required": false,
+          "width": "half",
+          "sort_order": 16
+        }
+      ],
+      "statuses": [
+        {
+          "code": "reported",
+          "name": "Reportada",
+          "color": "info",
+          "sort_order": 1,
+          "is_initial": true,
+          "is_final": false,
+          "counts_as_committed": true
+        },
+        {
+          "code": "in_review",
+          "name": "En revisión",
+          "color": "warning",
+          "sort_order": 2,
+          "is_initial": false,
+          "is_final": false,
+          "counts_as_committed": true
+        },
+        {
+          "code": "grounded",
+          "name": "Aeronave detenida",
+          "color": "danger",
+          "sort_order": 3,
+          "is_initial": false,
+          "is_final": false,
+          "counts_as_committed": true
+        },
+        {
+          "code": "solved",
+          "name": "Resuelta",
+          "color": "success",
+          "sort_order": 4,
+          "is_initial": false,
+          "is_final": true,
+          "counts_as_committed": true
+        },
+        {
+          "code": "no_findings",
+          "name": "Sin novedad",
+          "color": "success",
+          "sort_order": 5,
+          "is_initial": false,
+          "is_final": true,
+          "counts_as_committed": false
+        }
+      ],
+      "steps": [
+        {
+          "code": "report",
+          "name": "Reporte de la tripulación",
+          "role_code": "pilot",
+          "required": true,
+          "sort_order": 1
+        },
+        {
+          "code": "diagnosis",
+          "name": "Coordinación técnica y diagnóstico",
+          "role_code": "maintenance",
+          "required": true,
+          "sort_order": 2
+        },
+        {
+          "code": "movement",
+          "name": "Traslado al taller y notificación a Gerencia General",
+          "role_code": "operations",
+          "responsible_area": "Gerente ASEC",
+          "required": true,
+          "sort_order": 3
+        },
+        {
+          "code": "commercial",
+          "name": "Cotización OMA y autorización de inicio",
+          "role_code": "executive",
+          "responsible_area": "Gerencia General / OMA",
+          "required": true,
+          "sort_order": 4
+        },
+        {
+          "code": "return",
+          "name": "Retorno al hangar y notificación",
+          "role_code": "operations",
+          "responsible_area": "Gerente ASEC",
+          "required": true,
+          "sort_order": 5
+        },
+        {
+          "code": "verification",
+          "name": "Verificación técnica y disponibilidad",
+          "role_code": "maintenance",
+          "required": true,
+          "sort_order": 6
+        },
+        {
+          "code": "airworthiness",
+          "name": "Notificación de aeronavegabilidad",
+          "role_code": "maintenance",
+          "required": true,
+          "sort_order": 7
+        }
+      ]
+    },
+    {
+      "code": "inac_permit",
+      "name": "Permiso de vuelo (INAC)",
+      "description": "Nacional 24 h, internacional 48 h de anticipación.",
+      "is_root": false,
+      "child_type_codes": [],
+      "default_role_code": "operations",
+      "blocks_parent_close": true,
+      "relation_kinds": [
+        "aircraft"
+      ],
+      "is_system": false,
+      "fields": [
+        {
+          "key": "scope",
+          "label": "Alcance",
+          "type": "select",
+          "required": true,
+          "width": "half",
+          "sort_order": 1,
+          "catalog": "operation_scopes"
+        },
+        {
+          "key": "submitted_at",
+          "label": "Fecha de solicitud",
+          "type": "date",
+          "required": false,
+          "width": "half",
+          "sort_order": 2
+        },
+        {
+          "key": "navaid_paid",
+          "label": "¿Radioayuda pagada?",
+          "type": "checkbox",
+          "required": false,
+          "width": "half",
+          "sort_order": 3
+        },
+        {
+          "key": "approval",
+          "label": "Respuesta del INAC",
+          "type": "file",
+          "required": false,
+          "width": "full",
+          "sort_order": 4
+        }
+      ],
+      "statuses": [
+        {
+          "code": "requested",
+          "name": "Solicitado",
+          "color": "info",
+          "sort_order": 1,
+          "is_initial": true,
+          "is_final": false,
+          "counts_as_committed": true
+        },
+        {
+          "code": "pending_payment",
+          "name": "Falta radioayuda",
+          "color": "danger",
+          "sort_order": 2,
+          "is_initial": false,
+          "is_final": false,
+          "counts_as_committed": true
+        },
+        {
+          "code": "approved",
+          "name": "Aprobado",
+          "color": "success",
+          "sort_order": 3,
+          "is_initial": false,
+          "is_final": true,
+          "counts_as_committed": true
+        }
+      ],
+      "steps": [
+        {
+          "code": "request",
+          "name": "Solicitud",
+          "role_code": "operations",
+          "required": true,
+          "sort_order": 1
+        },
+        {
+          "code": "payment",
+          "name": "Pago de radioayuda",
+          "role_code": "admin",
+          "required": true,
+          "sort_order": 2
+        },
+        {
+          "code": "approval",
+          "name": "Respuesta del INAC",
+          "role_code": "operations",
+          "required": true,
+          "sort_order": 3
+        }
+      ]
+    },
+    {
+      "code": "hangar_incident",
+      "name": "Novedad en hangar",
+      "description": "Trabajo sin vuelo asociado.",
+      "is_root": false,
+      "child_type_codes": [],
+      "default_role_code": "maintenance",
+      "blocks_parent_close": false,
+      "relation_kinds": [
+        "aircraft",
+        "inventory"
+      ],
+      "is_system": false,
+      "fields": [
+        {
+          "key": "detected_at",
+          "label": "Fecha de detección",
+          "type": "date",
+          "required": false,
+          "width": "half",
+          "sort_order": 1
+        },
+        {
+          "key": "description",
+          "label": "Descripción",
+          "type": "textarea",
+          "required": true,
+          "width": "full",
+          "sort_order": 2
+        },
+        {
+          "key": "photo",
+          "label": "Evidencia",
+          "type": "file",
+          "required": false,
+          "width": "full",
+          "sort_order": 3
+        }
+      ],
+      "statuses": [
+        {
+          "code": "open",
+          "name": "Abierto",
+          "color": "info",
+          "sort_order": 1,
+          "is_initial": true,
+          "is_final": false,
+          "counts_as_committed": true
+        },
+        {
+          "code": "in_progress",
+          "name": "En proceso",
+          "color": "warning",
+          "sort_order": 2,
+          "is_initial": false,
+          "is_final": false,
+          "counts_as_committed": true
+        },
+        {
+          "code": "blocked",
+          "name": "Bloqueado",
+          "color": "danger",
+          "sort_order": 3,
+          "is_initial": false,
+          "is_final": false,
+          "counts_as_committed": true
+        },
+        {
+          "code": "done",
+          "name": "Resuelto",
+          "color": "success",
+          "sort_order": 4,
+          "is_initial": false,
+          "is_final": true,
+          "counts_as_committed": true
+        },
+        {
+          "code": "cancelled",
+          "name": "Anulado",
+          "color": "default",
+          "sort_order": 5,
+          "is_initial": false,
+          "is_final": true,
+          "counts_as_committed": false
+        }
+      ],
+      "steps": [
+        {
+          "code": "attend",
+          "name": "Atención",
+          "role_code": "maintenance",
+          "required": true,
+          "sort_order": 1
+        }
+      ]
+    }
+  ],
+  "business_rules": [
+    {
+      "name": "Gasto mayor a 500 USD requiere autorización",
+      "type_code": "expense",
+      "field": "amount_base",
+      "operator": "gt",
+      "value": "500",
+      "action": "require_authorization",
+      "message": "Supera el monto autorizado por operación. Requiere visto bueno de la dirección."
+    },
+    {
+      "name": "Todo gasto debe tener comprobante",
+      "type_code": "expense",
+      "field": "attachments",
+      "operator": "missing",
+      "action": "require_support",
+      "message": "El gasto no tiene comprobante adjunto."
+    },
+    {
+      "name": "Gasto fuera de rango para la ruta",
+      "type_code": "expense",
+      "field": "amount_vs_route",
+      "operator": "gt",
+      "action": "require_authorization",
+      "message": "El importe supera lo habitual para la ruta de esta operación.",
+      "route_limits": {
+        "CCS-PZO": 1200,
+        "CCS-SVSA": 900
+      }
+    },
+    {
+      "name": "Radioayuda bloquea el despacho",
+      "type_code": "expense",
+      "field": "concept",
+      "operator": "eq",
+      "value": "navaid",
+      "action": "warn",
+      "message": "Sin el pago de radioayuda el INAC no autoriza el vuelo."
+    }
+  ]
+}

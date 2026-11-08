@@ -1,0 +1,42 @@
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: docker/dev/Dockerfile.dev
+    container_name: aero-api-dev
+    restart: unless-stopped
+    # Bound to loopback: only the reverse proxy on the host reaches it.
+    ports:
+      - "127.0.0.1:8021:8000"
+    env_file:
+      - ../../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aero-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: aero-postgres-dev
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    # No host port: the database is only reachable on the internal network.
+    # Use an SSH tunnel for direct access.
+    volumes:
+      - aero_pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - aero-network
+
+volumes:
+  aero_pgdata_dev:
+
+networks:
+  aero-network:
+    driver: bridge

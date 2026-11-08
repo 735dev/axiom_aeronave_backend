@@ -1,0 +1,16 @@
+.env
+.env.*
+!env.template
+!env.production.template
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+uploads/
+*.dump
+*.sql
+*.sql.gz
+.gstack/
+.env.*.local
+!docker/postgres/*.sql

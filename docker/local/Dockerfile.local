@@ -1,0 +1,19 @@
+FROM python:3.12-slim
+ENV PYTHONUNBUFFERED=1 PYTHONFAULTHANDLER=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements/ requirements/
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements/local.txt
+
+COPY . .
+
+EXPOSE 8000 5680
+
+COPY docker/local/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]

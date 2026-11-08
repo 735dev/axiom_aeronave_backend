@@ -1,0 +1,44 @@
+# Reverse proxy de referencia. TLS automatico (Let's Encrypt) con HTTP->HTTPS por defecto.
+{
+	email {$ACME_EMAIL}
+	servers {
+		protocols h1 h2
+	}
+}
+
+(secure_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+}
+
+# API. CORS lo decide la propia API (ALLOWED_ORIGINS, sin "*"); el proxy NO anade Access-Control-*.
+{$API_HOST} {
+	import secure_headers
+	header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+	# Adjuntos: maximo 20 MB (app/integrations/blackbox/rules.py) + overhead multipart.
+	request_body {
+		max_size 21MB
+	}
+	reverse_proxy api:8000 {
+		health_uri /health
+		# Caddy ya fija X-Forwarded-For/Proto; la API los confia solo desde FORWARDED_ALLOW_IPS.
+		transport http {
+			response_header_timeout 60s
+		}
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+# Frontend estatico (contenedor `web` del repo del frontend; ver frontend/deploy/).
+# Anadir el servicio `web` a la red `backend` y descomentar:
+#{$APP_HOST} {
+#	import secure_headers
+#	reverse_proxy web:8080
+#}

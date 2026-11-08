@@ -1,0 +1,502 @@
+{
+  "GET /health": {
+    "access": "public",
+    "description": "Liveness probe."
+  },
+  "GET /health/ready": {
+    "access": "public",
+    "description": "Readiness probe: checks the database. Exposes no data."
+  },
+  "POST /api/v1/auth/login/": {
+    "access": "public",
+    "description": "Credentials are the authentication itself. Throttled by IP and by account."
+  },
+  "POST /api/v1/auth/refresh/": {
+    "access": "public",
+    "description": "Authenticated by the refresh token in the body, which the service verifies."
+  },
+  "POST /api/v1/auth/logout/": {
+    "access": "authenticated"
+  },
+  "GET /api/v1/auth/me/": {
+    "access": "authenticated"
+  },
+  "PATCH /api/v1/auth/me/": {
+    "access": "authenticated",
+    "description": "Own profile: full_name, phone, avatar_url only."
+  },
+  "POST /api/v1/auth/password/": {
+    "access": "authenticated",
+    "description": "Own password; needs the current one."
+  },
+  "GET /api/v1/auth/me/signature/": {
+    "access": "authenticated",
+    "description": "Owner taken from the token."
+  },
+  "PATCH /api/v1/auth/me/signature/": {
+    "access": "authenticated",
+    "description": "Owner taken from the token."
+  },
+  "GET /api/v1/modules/": {
+    "access": "authenticated",
+    "description": "Every session builds its menu from this list."
+  },
+  "PATCH /api/v1/modules/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "roles.manage"
+    ]
+  },
+  "GET /api/v1/permissions/": {
+    "access": "permission",
+    "permissions": [
+      "roles.view",
+      "roles.manage",
+      "users.view",
+      "users.manage"
+    ],
+    "description": "Also read by the users admin screen."
+  },
+  "GET /api/v1/roles/": {
+    "access": "permission",
+    "permissions": [
+      "roles.view",
+      "roles.manage",
+      "users.view",
+      "users.manage"
+    ],
+    "description": "Also read by the users admin screen."
+  },
+  "GET /api/v1/roles/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "roles.view",
+      "roles.manage",
+      "users.view",
+      "users.manage"
+    ]
+  },
+  "POST /api/v1/roles/": {
+    "access": "permission",
+    "permissions": [
+      "roles.manage"
+    ]
+  },
+  "PATCH /api/v1/roles/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "roles.manage"
+    ]
+  },
+  "DELETE /api/v1/roles/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "roles.manage"
+    ]
+  },
+  "GET /api/v1/users/": {
+    "access": "permission",
+    "permissions": [
+      "users.view",
+      "users.manage"
+    ]
+  },
+  "GET /api/v1/users/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "users.view",
+      "users.manage"
+    ]
+  },
+  "GET /api/v1/users/{id}/effective-permissions/": {
+    "access": "permission",
+    "permissions": [
+      "users.view",
+      "users.manage"
+    ]
+  },
+  "POST /api/v1/users/": {
+    "access": "permission",
+    "permissions": [
+      "users.manage"
+    ]
+  },
+  "PATCH /api/v1/users/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "users.manage"
+    ]
+  },
+  "POST /api/v1/users/{id}/reset-password/": {
+    "access": "permission",
+    "permissions": [
+      "users.manage"
+    ]
+  },
+  "GET /api/v1/catalogs/": {
+    "access": "permission",
+    "permissions": [
+      "catalogs.view",
+      "catalogs.manage"
+    ]
+  },
+  "GET /api/v1/catalog-items/": {
+    "access": "authenticated",
+    "description": "Reference data read by every form (a pilot fills airports and units)."
+  },
+  "GET /api/v1/catalog-items/{id}/": {
+    "access": "authenticated",
+    "description": "Reference data read by every form."
+  },
+  "POST /api/v1/catalog-items/": {
+    "access": "permission",
+    "permissions": [
+      "catalogs.manage"
+    ]
+  },
+  "PATCH /api/v1/catalog-items/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "catalogs.manage"
+    ]
+  },
+  "DELETE /api/v1/catalog-items/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "catalogs.manage"
+    ]
+  },
+  "GET /api/v1/audit/": {
+    "access": "permission",
+    "permissions": [
+      "audit.view"
+    ]
+  },
+  "GET /api/v1/audit/export/": {
+    "access": "permission",
+    "permissions": [
+      "audit.export"
+    ],
+    "description": "CSV of the trail with the listing filters; leaves an export event."
+  },
+  "GET /api/v1/tickets/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.view"
+    ],
+    "description": "Rows are scoped in the repository to the types the caller may view.",
+    "prefix_match": true
+  },
+  "GET /api/v1/tickets/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.view"
+    ],
+    "description": "Scoped get: a ticket of a type the caller cannot view is a 404.",
+    "prefix_match": true
+  },
+  "POST /api/v1/tickets/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.create"
+    ],
+    "description": "Per-type permission checked in the service against the body type.",
+    "prefix_match": true
+  },
+  "PATCH /api/v1/tickets/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.edit"
+    ],
+    "description": "Per-type permission checked in the service against the ticket type.",
+    "prefix_match": true
+  },
+  "GET /api/v1/tickets/{id}/history/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.view"
+    ],
+    "description": "Timeline of a ticket the caller can view.",
+    "prefix_match": true
+  },
+  "POST /api/v1/tickets/{id}/decisions/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.edit"
+    ],
+    "description": "The step must belong to the caller role unless tickets.decide_any.",
+    "prefix_match": true
+  },
+  "POST /api/v1/tickets/{id}/authorize/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.decide_any"
+    ],
+    "description": "Management approval of a flagged expense."
+  },
+  "GET /api/v1/tickets/{id}/extractions/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.view"
+    ],
+    "description": "Readings of receipts of a viewable ticket.",
+    "prefix_match": true
+  },
+  "POST /api/v1/tickets/{id}/extractions/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.edit"
+    ],
+    "description": "Propose a reading as a person; the machine reader uses the service.",
+    "prefix_match": true
+  },
+  "POST /api/v1/tickets/{id}/extractions/{extraction_id}/validate/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.edit"
+    ],
+    "description": "Review gate enforced in the service.",
+    "prefix_match": true
+  },
+  "GET /api/v1/ticket-types/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.view",
+      "tickets.create",
+      "tickets.edit",
+      "ticket_types.manage"
+    ],
+    "description": "Anyone who works tickets needs the form; rows are scoped per type.",
+    "prefix_match": true
+  },
+  "GET /api/v1/ticket-types/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.view",
+      "tickets.create",
+      "tickets.edit",
+      "ticket_types.manage"
+    ],
+    "description": "Scoped get.",
+    "prefix_match": true
+  },
+  "POST /api/v1/ticket-types/": {
+    "access": "permission",
+    "permissions": [
+      "ticket_types.manage"
+    ],
+    "description": "Defines forms, statuses and steps."
+  },
+  "PATCH /api/v1/ticket-types/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "ticket_types.manage"
+    ],
+    "description": "Defines forms, statuses and steps."
+  },
+  "DELETE /api/v1/ticket-types/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "ticket_types.manage"
+    ],
+    "description": "Defines forms, statuses and steps."
+  },
+  "GET /api/v1/rules/": {
+    "access": "permission",
+    "permissions": [
+      "ticket_types.manage"
+    ],
+    "description": "Business rules are part of a type definition."
+  },
+  "POST /api/v1/rules/": {
+    "access": "permission",
+    "permissions": [
+      "ticket_types.manage"
+    ],
+    "description": "Business rules are part of a type definition."
+  },
+  "GET /api/v1/rules/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "ticket_types.manage"
+    ],
+    "description": "Business rules are part of a type definition."
+  },
+  "PATCH /api/v1/rules/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "ticket_types.manage"
+    ],
+    "description": "Business rules are part of a type definition."
+  },
+  "DELETE /api/v1/rules/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "ticket_types.manage"
+    ],
+    "description": "Business rules are part of a type definition."
+  },
+  "GET /api/v1/tickets/{id}/attachments/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.view"
+    ],
+    "description": "Files of a ticket the caller can view (scoped get).",
+    "prefix_match": true
+  },
+  "POST /api/v1/tickets/{id}/attachments/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.edit"
+    ],
+    "description": "Multipart upload; per-type edit permission, content and size validated in the service.",
+    "prefix_match": true
+  },
+  "GET /api/v1/tickets/{id}/attachments/{file_id}/download/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.view"
+    ],
+    "description": "Signed link to the original; a file of another ticket is a 404.",
+    "prefix_match": true
+  },
+  "POST /api/v1/tickets/{id}/attachments/{file_id}/validate/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.edit"
+    ],
+    "description": "Review gate of the reading of one file, enforced in the service.",
+    "prefix_match": true
+  },
+  "DELETE /api/v1/tickets/{id}/attachments/{file_id}/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.edit"
+    ],
+    "description": "Detach a file while the ticket is open.",
+    "prefix_match": true
+  },
+  "POST /api/v1/attachments/extract/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.create",
+      "tickets.edit"
+    ],
+    "description": "Reads a receipt before the record exists; the type is checked in the service.",
+    "prefix_match": true
+  },
+  "GET /api/v1/attachments/pending/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.edit"
+    ],
+    "description": "Validation queue, scoped in the query to viewable tickets.",
+    "prefix_match": true
+  },
+  "GET /api/v1/notifications/": {
+    "access": "permission",
+    "permissions": [
+      "notifications.view"
+    ],
+    "description": "Only the notices addressed to the caller role or user, filtered in the query."
+  },
+  "PATCH /api/v1/notifications/{id}/": {
+    "access": "permission",
+    "permissions": [
+      "notifications.view"
+    ],
+    "description": "Marks the caller own read state; a foreign notice is a 404."
+  },
+  "POST /api/v1/notifications/read-all/": {
+    "access": "permission",
+    "permissions": [
+      "notifications.view"
+    ],
+    "description": "Marks every notice addressed to the caller as read."
+  },
+  "GET /api/v1/tickets/totals/": {
+    "access": "permission",
+    "permissions": [
+      "analytics.view"
+    ],
+    "description": "Totals over the rows the caller may view (same scoped base query as the listing)."
+  },
+  "GET /api/v1/tickets/{id}/closing/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.view"
+    ],
+    "description": "Closing summary of an operation the caller can view; any other id is a 404.",
+    "prefix_match": true
+  },
+  "GET /api/v1/tickets/{id}/passengers/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.view"
+    ],
+    "description": "Manifest of an operation the caller can view.",
+    "prefix_match": true
+  },
+  "PUT /api/v1/tickets/{id}/passengers/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.edit"
+    ],
+    "description": "Replaces the manifest; per-type edit permission is checked in the service.",
+    "prefix_match": true
+  },
+  "POST /api/v1/tickets/{id}/passengers/": {
+    "access": "permission",
+    "permissions": [
+      "tickets.edit"
+    ],
+    "description": "Same as PUT (the simulator's verb).",
+    "prefix_match": true
+  },
+  "GET /api/v1/passengers/search/": {
+    "access": "authenticated",
+    "description": "Scope is applied in the query by the types the caller may view; none readable is a 404."
+  },
+  "GET /api/v1/reconciliation/": {
+    "access": "permission",
+    "permissions": [
+      "analytics.view"
+    ],
+    "description": "Report of a month over the tickets the caller may view."
+  },
+  "GET /api/v1/reconciliation/periods/": {
+    "access": "permission",
+    "permissions": [
+      "analytics.view"
+    ],
+    "description": "Closed periods."
+  },
+  "POST /api/v1/reconciliation/acknowledgements/": {
+    "access": "permission",
+    "permissions": [
+      "reconciliation.close"
+    ],
+    "description": "Justify a difference of an open period."
+  },
+  "POST /api/v1/reconciliation/close/": {
+    "access": "permission",
+    "permissions": [
+      "reconciliation.close"
+    ],
+    "description": "Close a period; needs every difference justified. Never reopened."
+  },
+  "POST /api/v1/reconciliation/export/": {
+    "access": "permission",
+    "permissions": [
+      "analytics.view"
+    ],
+    "description": "Leaves the record of an export built by the client."
+  },
+  "GET /api/v1/reconciliation/export/": {
+    "access": "permission",
+    "permissions": [
+      "analytics.view"
+    ],
+    "description": "CSV of the month, formula-injection safe."
+  }
+}

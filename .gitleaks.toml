@@ -1,0 +1,16 @@
+# Gitleaks: reglas por defecto + allowlist ESTRECHA de los tokens falsos documentados en los tests.
+# Solo valores EXACTOS (sin allowlist por ruta: gitleaks omite el archivo entero y ocultaria secretos reales en tests/).
+title = "aeronaves gitleaks"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Tokens falsos de tests (no son credenciales)"
+regexTarget = "match"
+regexes = [
+  '''bb_maestro_ULTRASECRETO123''',
+  '''bb_maestro_TEST\b''',
+  '''sk-ant-api03-ULTRASECRETO"''',
+  '''test-secret-test-secret-test-secret-0123456789''',
+]

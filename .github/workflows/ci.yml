@@ -1,0 +1,79 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aero
+          POSTGRES_PASSWORD: aero
+          POSTGRES_DB: aero
+        ports: ["5440:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aero -d aero" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://aero:aero@localhost:5440/aero
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements/*.txt
+      - run: pip install -r requirements/test.txt
+      - name: Format (black)
+        run: python -m black -l 100 --check app tests alembic/env.py
+      - name: Architecture self-checks (each must print nothing)
+        run: |
+          fail=0
+          ! grep -rn "\.session\." app/services app/api || fail=1
+          ! grep -rnE "^@router\.(get|post|put|patch|delete)" app/api || fail=1
+          ! grep -rE "from app\.(models|services|repositories)" tests/e2e || fail=1
+          exit $fail
+      - name: Create test database
+        run: PGPASSWORD=aero psql -h localhost -p 5440 -U aero -d aero -c "CREATE DATABASE aero_test"
+      - name: Migrations up / down / up / check
+        run: |
+          python -m alembic upgrade head
+          python -m alembic downgrade base
+          python -m alembic upgrade head
+          python -m alembic check
+      - name: Route registry drift (also asserted at app start-up)
+        run: python -m pytest -q tests/e2e/test_route_registry.py
+      - name: Tests
+        run: python -m pytest -q
+
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with: { dockerfile: docker/prod/Dockerfile.prod }
+      - name: Build prod image
+        run: docker build -f docker/prod/Dockerfile.prod -t aeronaves-api:ci .
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: aeronaves-api:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Trivy filesystem / dependency scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"

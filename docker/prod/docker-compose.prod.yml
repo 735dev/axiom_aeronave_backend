@@ -1,0 +1,109 @@
+# Produccion. Unico servicio publicado en el host: el reverse proxy (80/443).
+# api / postgres / redis / web viven en redes internas sin salida a internet salvo la api (Blackbox, Anthropic).
+# Secretos: ../../.env (chmod 600, fuera del repo) o `docker secret`; ver docs/DESPLIEGUE.md.
+services:
+  caddy:
+    image: caddy:2.8-alpine@sha256:af32e97399febea808609119bb21544d0265c58a02836576e32a2d082c262c17
+    container_name: aero-caddy-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - API_HOST=${API_HOST:?API_HOST requerido (ej. api.aeronaves.example.com)}
+      - APP_HOST=${APP_HOST:?APP_HOST requerido (ej. aeronaves.example.com)}
+      - ACME_EMAIL=${ACME_EMAIL:?ACME_EMAIL requerido}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [edge, backend]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+
+  api:
+    build:
+      context: ../..
+      dockerfile: docker/prod/Dockerfile.prod
+    image: aeronaves-api:prod
+    container_name: aero-api-prod
+    restart: always
+    env_file:
+      - ../../.env
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [backend, db, egress]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "10" }
+    # Adjuntos (si el modo de almacenamiento escribe en disco, montar aqui un volumen).
+
+  postgres:
+    image: postgres:16-alpine@sha256:aa6cb33cf4c19c765cefcf48d96176258800870a9a1e930ad126200f9d825139
+    container_name: aero-postgres-prod
+    restart: always
+    env_file:
+      - ../../.env
+    # Sin `ports`: la BD solo es alcanzable desde la red interna `db`. Acceso directo: tunel SSH.
+    volumes:
+      - aero_pgdata_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [db]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "10" }
+
+  redis:
+    image: redis:7-alpine@sha256:c5d34a98396a4775e223c74e929162c35c5a2182901ba26b50ade939941ce14b
+    container_name: aero-redis-prod
+    restart: always
+    # Store compartido del limitador de login (obligatorio con mas de una replica).
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "volatile-ttl"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [backend]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  aero_pgdata_prod:
+  caddy_data:
+  caddy_config:
+
+networks:
+  edge:        # unica red con salida publicada (caddy)
+    driver: bridge
+  backend:     # caddy <-> api <-> redis; sin salida a internet
+    driver: bridge
+    internal: true
+  db:          # api <-> postgres; sin salida a internet
+    driver: bridge
+    internal: true
+  egress:      # la api llama a Blackbox y a Anthropic; nada escucha aqui
+    driver: bridge
