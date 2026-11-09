@@ -3,4 +3,4 @@
 gunicorn==23.0.0
 uvicorn-worker==0.4.0
 # Optional error tracking (SENTRY_DSN empty = disabled)
-sentry-sdk[fastapi]>=2.10,<3.0
+sentry-sdk[fastapi]>=2.74.0,<3.0
