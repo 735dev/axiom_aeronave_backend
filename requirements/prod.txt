@@ -1,6 +1,6 @@
 -r base.txt
 
-gunicorn==23.0.0
+gunicorn==26.2.0
 uvicorn-worker==0.4.0
 # Optional error tracking (SENTRY_DSN empty = disabled)
 sentry-sdk[fastapi]>=2.10,<3.0
