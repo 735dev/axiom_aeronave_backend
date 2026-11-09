@@ -57,7 +57,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: hadolint/hadolint-action@v3.1.0
+      - uses: hadolint/hadolint-action@v3.5.0
         with: { dockerfile: docker/prod/Dockerfile.prod }
       - name: Build prod image
         run: docker build -f docker/prod/Dockerfile.prod -t aeronaves-api:ci .
