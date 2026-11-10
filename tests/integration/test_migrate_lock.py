@@ -83,7 +83,7 @@ async def test_a_waiting_replica_does_not_touch_the_database_until_the_lock_is_f
     assert code == 0, out
     assert "waited" in out
     version, users = await head_and_users(scratch_db)
-    assert version and users == 6
+    assert version and users == 8
 
 
 async def test_two_replicas_started_together_both_succeed_and_seed_once(scratch_db):
@@ -92,7 +92,7 @@ async def test_two_replicas_started_together_both_succeed_and_seed_once(scratch_
     assert code_a == 0, out_a
     assert code_b == 0, out_b
     version, users = await head_and_users(scratch_db)
-    assert version and users == 6
+    assert version and users == 8
     # Exactly one of them ran the migrations that create tables; the other found them done.
     applied = [out for out in (out_a, out_b) if "Running upgrade" in out]
     assert len(applied) == 1, (out_a, out_b)

@@ -154,3 +154,31 @@ con un respaldo real mensual y anotar aqui fecha, tamaño y tiempos **[pendiente
 - Roles sembrados: `maintenance` recibe `tickets.edit.technical_report` y `admin` recibe `analytics.view` + `reconciliation.close`
   **solo al crear el rol**. En una base ya sembrada hay que concederlos una vez desde la administracion de roles (o con SQL sobre
   `role_permission`); la semilla no pisa lo que un administrador cambio.
+
+## 10. Servidor compartido con Nginx Proxy Manager y CD (2026-11-09)
+
+Servidor `humboltd` (63.142.251.182): NPM es dueno de 80/443 y otras apps viven al lado. Aeronaves va en su propio proyecto compose
+`aero-prod` (`/root/axiom_aeronave_backend/`), con `docker/prod/docker-compose.shared-proxy.yml` como override: Caddy queda fuera y la api
+se une a `nginx-proxy-manager_default`. Sin puertos publicados en el host; NPM apunta a `aero-api-prod:8000`.
+
+- **CD**: `.github/workflows/deploy.yml` corre tras el `ci` verde de `main` (o a mano). Envia `git archive <sha>` por SSH con una llave
+  cuyo `authorized_keys` fuerza `command="/usr/local/sbin/aero-deploy",restrict`: la llave solo puede ejecutar ese script. Host fijado
+  con `DEPLOY_KNOWN_HOSTS` (huella verificada por un canal confiable, no TOFU). Secretos: `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`;
+  variables: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_API_URL`.
+- `deploy/aero-deploy.sh` (copia instalada en el servidor): build, postgres+redis, migraciones, roles `aero_app`/`aero_maint`
+  (idempotente, cubre tablas nuevas), semilla, api, espera de salud y **rollback automatico** a `aeronaves-api:previous` si no queda sana.
+  Solo toca el proyecto `aero-prod`. Si el script cambia, reinstalarlo a mano (`scp` + `install -m 755`): el CD no lo actualiza a si mismo.
+- Las migraciones son solo hacia adelante: un rollback de imagen no revierte el esquema (ver seccion 6).
+- **NPM** (host de proxy, a mano): dominio `api-aereo.axiomcoretech.com` -> `http://aero-api-prod:8000`, certificado Let's Encrypt, Force SSL y HTTP/2.
+  Pestana Advanced, para reponer lo que hacia Caddy:
+
+```nginx
+client_max_body_size 21m;
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "no-referrer" always;
+add_header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'" always;
+```
+
+- Secretos: `/root/axiom_aeronave_backend/.env` (chmod 600, generado en el servidor). `BLACKBOX_MAESTRO_TOKEN` queda vacio hasta tenerlo.
+- El compose base corrigio Redis (`user: redis`): con `cap_drop: ALL` su entrypoint no puede bajar de root y entraba en bucle (exit 127).

@@ -8,7 +8,10 @@ from tests.e2e.closing_support import (
     ready_operation,
     set_signature,
     sign,
+    sign_step,
+    signer_of,
     totals,
+    SIGNING_STEPS,
 )
 from tests.e2e.conftest import API
 from tests.e2e.tickets_support import (
@@ -89,7 +92,12 @@ class TestProgressByRole:
         assert after["done"] == before["done"] + 1
         assert any("Planificación" in p for p in before["pending"])
         assert not any("Planificación" in p for p in after["pending"])
-        assert any("Firma de cierre" in p for p in after["pending"])
+        # Operaciones no longer signs: each signature is pending on its own role.
+        assert not any("Firma" in p for p in after["pending"])
+        pilot_row = next(
+            r for r in (await closing(ops, op))["progress"] if r["role_name"] == "Piloto"
+        )
+        assert any("Firma del capitán" in p for p in pilot_row["pending"])
 
     async def test_pending_items_name_the_ticket_they_belong_to(self, ops):
         op = await make_operation(ops)
@@ -242,15 +250,27 @@ class TestBlockers:
         op = await ready_operation(ops)
         await with_support(ops, op)
         body = await closing(ops, op)
-        assert [b["step_code"] for b in body["blockers"]] == ["signature"]
+        assert [b["step_code"] for b in body["blockers"]] == list(SIGNING_STEPS)
+        assert {b["kind"] for b in body["blockers"]} == {"signature"}
+        assert [b["role_name"] for b in body["blockers"]] == [
+            "Piloto",
+            "Mantenimiento",
+            "Coordinación AVSEC",
+            "Gerencia General",
+        ]
         assert body["ready"] is True
 
-    async def test_signing_clears_the_last_blocker(self, ops):
-        await set_signature(ops)
+    async def test_signing_clears_the_last_blockers(self, ops):
         op = await ready_operation(ops)
         assert (await sign(ops, op)).status_code == 201
         body = await closing(ops, op)
         assert body["blockers"] == [] and body["ready"] is True
+
+    async def test_each_signature_clears_only_its_own_blocker(self, ops):
+        op = await ready_operation(ops)
+        await sign_step(ops, op, "sign_maintenance")
+        left = [b["step_code"] for b in (await closing(ops, op))["blockers"]]
+        assert left == ["sign_captain", "sign_avsec", "sign_general"]
 
     async def test_a_rejected_expense_needs_no_support(self, ops):
         op = await ready_operation(ops)
@@ -271,39 +291,73 @@ class TestBlockers:
         assert sorted(ids) == sorted([a["id"], b["id"]])
 
 
-class TestSigner:
+class TestSigners:
+    async def test_lists_the_four_signatures_in_order(self, ops):
+        signers = (await closing(ops, await make_operation(ops)))["signers"]
+        assert [x["step_code"] for x in signers] == list(SIGNING_STEPS)
+        assert [x["role_name"] for x in signers] == [
+            "Piloto",
+            "Mantenimiento",
+            "Coordinación AVSEC",
+            "Gerencia General",
+        ]
+        assert all(x["required"] is True and x["signed"] is False for x in signers)
+        assert all(x["signed_by_name"] is None and x["signed_at"] is None for x in signers)
+        assert "signer" not in (await closing(ops, await make_operation(ops)))
+
     async def test_reports_whether_the_user_has_a_signature(self, ops):
         op = await make_operation(ops)
         await set_signature(ops, "")
-        assert (await closing(ops, op))["signer"]["has_signature"] is False
+        assert all(x["has_signature"] is False for x in (await closing(ops, op))["signers"])
         await set_signature(ops)
-        assert (await closing(ops, op))["signer"]["has_signature"] is True
+        assert all(x["has_signature"] is True for x in (await closing(ops, op))["signers"])
 
-    async def test_who_can_sign(self, ops, admin, pilot):
+    async def test_each_role_can_sign_only_its_own_step(
+        self, ops, admin, pilot, maintenance, avsec, general
+    ):
         op = await make_operation(ops)
-        assert (await closing(ops, op))["signer"]["can_sign"] is True
-        assert (await closing(admin, op))["signer"]["can_sign"] is True
-        assert (await closing(pilot, op))["signer"]["can_sign"] is False
 
-    async def test_signer_names_the_step_and_the_role_that_signs(self, ops):
-        signer = (await closing(ops, await make_operation(ops)))["signer"]
-        assert signer["step_code"] == "signature"
-        assert signer["step_role_name"] == "Gerencia de Operaciones"
-        assert signer["step_signed"] is False
+        def can(body):
+            return [x["step_code"] for x in body["signers"] if x["can_sign"]]
 
-    async def test_step_signed_flips_after_the_signature(self, ops):
-        await set_signature(ops)
+        assert can(await closing(pilot, op)) == ["sign_captain"]
+        assert can(await closing(maintenance, op)) == ["sign_maintenance"]
+        assert can(await closing(avsec, op)) == ["sign_avsec"]
+        assert can(await closing(general, op)) == ["sign_general"]
+        # Operaciones and the superuser hold decide_any: it opens no signature.
+        assert can(await closing(ops, op)) == []
+        assert can(await closing(admin, op)) == []
+
+    async def test_a_signed_step_names_who_signed_and_stops_being_signable(self, ops, pilot):
         op = await make_operation(ops)
-        await sign(ops, op)
-        assert (await closing(ops, op))["signer"]["step_signed"] is True
+        await sign_step(ops, op, "sign_captain")
+        first = (await closing(pilot, op))["signers"][0]
+        assert first["signed"] is True
+        assert first["signed_by_name"] == "Cap. Rodríguez" and first["signed_at"]
+        assert first["can_sign"] is False
 
     async def test_signing_without_a_stored_signature_does_not_count_as_signed(self, ops):
-        await set_signature(ops, "")
         op = await make_operation(ops)
-        assert (await sign(ops, op)).status_code == 201
-        assert (await closing(ops, op))["signer"]["step_signed"] is False
+        signer = await signer_of(ops, "sign_avsec", with_signature=False)
+        assert (await decide(signer, op, "sign_avsec")).status_code == 201
+        entry = next(
+            x for x in (await closing(ops, op))["signers"] if x["step_code"] == "sign_avsec"
+        )
+        assert entry["signed"] is False
 
     async def test_the_summary_never_exposes_the_users_signature_image(self, ops):
         await set_signature(ops)
         op = await make_operation(ops)
         assert "data:image" not in (await ops.get(closing_url(op))).text
+
+    async def test_an_open_stamp_is_absent_and_a_closed_one_has_no_signer_to_act(self, ops):
+        op = await ready_operation(ops)
+        assert (await closing(ops, op))["stamp"] is None
+        await sign(ops, op)
+        from tests.e2e.closing_support import close_operation
+
+        assert (await close_operation(ops, op)).status_code == 200
+        body = await closing(ops, op)
+        assert body["stamp"] is not None
+        assert not any(x["can_sign"] for x in body["signers"])
+        assert all(x["signed"] for x in body["signers"])

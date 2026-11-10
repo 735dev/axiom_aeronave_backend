@@ -1,16 +1,13 @@
 """Signed closing, plugged into the tickets module through its extension points.
 
 - `CLOSE_CHECKS`: an operation counts as closed only with all its supports validated and
-  the signature of whoever has to sign it, loaded and stamped on the signature decision.
+  the signature of every role the type demands, loaded and stamped on each signing decision.
 - `STATUS_CHANGED`: when the operation reaches its final status the seal is written once.
 """
 
 from __future__ import annotations
 
-from app.config.closing import (
-    BLOCKERS_SKIPPED_BY_CLOSE_CHECK,
-    SIGNATURE_STEP_CODE,
-)
+from app.config.closing import BLOCKERS_SKIPPED_BY_CLOSE_CHECK
 from app.config.tickets import DecisionValue
 from app.integrations.blackbox.naming import folder_id_for
 from app.schemas.totals import TotalsRead
@@ -43,40 +40,52 @@ async def closing_check(context: TicketContext) -> str | None:
 
 
 async def seal_closing(context: TicketContext) -> None:
-    """Stamp signer, signature, moment and totals when an operation closes for good.
+    """Stamp every signer, signature, moment and totals when an operation closes for good.
     Cancelling or rejecting (a status that does not count) carries no seal."""
     ticket = context.ticket
     status = ticket.status
     if not (ticket.type.is_root and status.is_final and status.counts_as_committed):
         return
-    decision = next(
-        (
-            d
-            for d in ticket.decisions
-            if d.step_code == SIGNATURE_STEP_CODE and d.decision == DecisionValue.DONE.value
-        ),
-        None,
-    )
-    if decision is None or not decision.signed:
-        return
     service = context.service
     repository = service.closings
-    image = await repository.decision_signature(ticket.id, SIGNATURE_STEP_CODE)
-    if not image:
+    by_step = {d.step_code: d for d in ticket.decisions}
+    signatures: list[dict] = []
+    for step in ticket.type.signing_steps:
+        decision = by_step.get(step.code)
+        if decision is None or decision.decision != DecisionValue.DONE.value or not decision.signed:
+            return
+        image = await repository.decision_signature(ticket.id, step.code)
+        if not image:
+            return
+        signatures.append(
+            {
+                "step_code": step.code,
+                "step_name": step.name,
+                "user_id": decision.decided_by_id,
+                "user_name": decision.decided_by,
+                "role_code": getattr(step, "role_code", None),
+                "role_name": getattr(step, "role_name", None) or "",
+                "signature_url": image,
+                "signed_at": decision.decided_at,
+            }
+        )
+    if not signatures:
         return
+    # The seal's own signer is the last one to sign: the act that completed the closing.
+    last = max(signatures, key=lambda item: item["signed_at"])
     members = [ticket, *await repository.children_of(ticket.id)]
     totals = await repository.totals({"parent_id": ticket.id}, scoped=False)
-    step = ticket.type.step_by_code(SIGNATURE_STEP_CODE)
     await repository.seal(
         ticket,
-        signed_by_id=decision.decided_by_id,
-        signed_by=decision.decided_by,
-        signed_role=getattr(step, "role_name", None) or "",
-        signature_url=image,
-        signed_at=decision.decided_at,
+        signed_by_id=last["user_id"],
+        signed_by=last["user_name"],
+        signed_role=last["role_name"],
+        signature_url=last["signature_url"],
+        signed_at=last["signed_at"],
         totals=TotalsRead.model_validate(totals).model_dump(mode="json"),
         files_count=sum((await service.supports.counts(m.id for m in members)).values()),
         folder=folder_id_for(ticket.code, ticket.created_at.year),
+        signatures=signatures,
     )
 
 

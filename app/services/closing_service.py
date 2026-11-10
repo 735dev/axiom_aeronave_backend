@@ -11,8 +11,7 @@ from uuid import UUID
 
 from fastapi_basekit.exceptions.api_exceptions import NotFoundException
 
-from app.config.closing import SIGNATURE_STEP_CODE
-from app.config.tickets import PERM_DECIDE_ANY, DecisionValue
+from app.config.tickets import DecisionValue
 from app.repositories.closing import TicketClosingRepository
 from app.repositories.ticket_analytics import Totals
 from app.repositories.ticket_support import TicketSupportRepository
@@ -82,21 +81,8 @@ class ClosingService(ProjectService[Ticket]):
             ],
             "blockers": blockers,
             "ready": rules.is_ready(blockers),
-            "signer": await self._signer(root),
-            "stamp": (
-                {
-                    "signed_by": stamp.signed_by,
-                    "signed_role": stamp.signed_role,
-                    "signed_at": stamp.signed_at,
-                    "totals": stamp.totals,
-                    "files_count": stamp.files_count,
-                    "folder": stamp.folder,
-                    "has_signature": True,
-                    "signature_url": stamp.signature_url,
-                }
-                if stamp
-                else None
-            ),
+            "signers": await self._signers(root),
+            "stamp": await self._stamp(stamp),
         }
 
     @staticmethod
@@ -106,21 +92,58 @@ class ClosingService(ProjectService[Ticket]):
             "by_currency": totals.by_currency,
         }
 
-    async def _signer(self, root: Ticket) -> dict[str, Any]:
-        principal = self.principal
-        step = root.type.step_by_code(SIGNATURE_STEP_CODE)
-        decision = next((d for d in root.decisions if d.step_code == SIGNATURE_STEP_CODE), None)
-        can_sign = step is not None and (
-            step.role_id == principal.role_id or PERM_DECIDE_ANY in principal.permissions
-        )
+    async def _stamp(self, stamp: Any) -> dict[str, Any] | None:
+        if stamp is None:
+            return None
+        # Closings sealed before the multi-signature change have no signature rows.
+        signatures = await self.repository.signatures_of(stamp.id)
         return {
-            "user_name": principal.full_name,
-            "role_name": principal.role_name,
-            "has_signature": await self.repository.has_signature(principal.user_id),
-            "can_sign": can_sign,
-            "step_code": step.code if step else None,
-            "step_role_name": getattr(step, "role_name", None) if step else None,
-            "step_signed": bool(
-                decision and decision.decision == DecisionValue.DONE.value and decision.signed
-            ),
+            "signed_by": stamp.signed_by,
+            "signed_role": stamp.signed_role,
+            "signed_at": stamp.signed_at,
+            "totals": stamp.totals,
+            "files_count": stamp.files_count,
+            "folder": stamp.folder,
+            "has_signature": True,
+            "signature_url": stamp.signature_url,
+            "signatures": [
+                {
+                    "step_code": s.step_code,
+                    "step_name": s.step_name,
+                    "role_name": s.role_name,
+                    "user_name": s.user_name,
+                    "signed_at": s.signed_at,
+                    "signature_url": s.signature_url,
+                }
+                for s in signatures
+            ],
         }
+
+    async def _signers(self, root: Ticket) -> list[dict[str, Any]]:
+        """Every signature the type demands, in order, and what the caller may do about it."""
+        principal = self.principal
+        has_signature = await self.repository.has_signature(principal.user_id)
+        decisions = {d.step_code: d for d in root.decisions}
+        locked = root.status.is_final
+        result = []
+        for step in root.type.signing_steps:
+            decision = decisions.get(step.code)
+            signed = bool(
+                decision and decision.decision == DecisionValue.DONE.value and decision.signed
+            )
+            result.append(
+                {
+                    "step_code": step.code,
+                    "step_name": step.name,
+                    "role_code": getattr(step, "role_code", None),
+                    "role_name": rules.role_label(step),
+                    "required": True,
+                    "signed": signed,
+                    "signed_by_name": decision.decided_by if signed else None,
+                    "signed_at": decision.decided_at if signed else None,
+                    # Strictly the step's own role: a signature is personal, no bypass.
+                    "can_sign": (not locked and not signed and step.role_id == principal.role_id),
+                    "has_signature": has_signature,
+                }
+            )
+        return result

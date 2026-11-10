@@ -47,6 +47,8 @@ os.environ.update(
         "RATE_LIMIT_SEARCH_PER_IP": "100000",
         "RATE_LIMIT_EXPORT_PER_ACCOUNT": "100000",
         "RATE_LIMIT_EXPORT_PER_IP": "100000",
+        "RATE_LIMIT_IMPORT_PER_ACCOUNT": "100000",
+        "RATE_LIMIT_IMPORT_PER_IP": "100000",
         "RATE_LIMIT_AUDIT_SEARCH_PER_ACCOUNT": "100000",
         "RATE_LIMIT_AUDIT_SEARCH_PER_IP": "100000",
         "RATE_LIMIT_HEAVY_LIST_PER_ACCOUNT": "100000",
@@ -213,6 +215,7 @@ PERMISSION_CODES = {
     "tickets.create",
     "tickets.edit",
     "tickets.decide_any",
+    "tickets.sign",
     "ticket_types.manage",
     "notifications.view",
     "users.view",
@@ -370,6 +373,19 @@ async def ops(logged) -> Api:
 @pytest_asyncio.fixture
 async def maintenance(logged) -> Api:
     api, _ = await logged("mantenimiento@transvalor.com")
+    return api
+
+
+@pytest_asyncio.fixture
+async def avsec(logged) -> Api:
+    api, _ = await logged("avsec@transvalor.com")
+    return api
+
+
+@pytest_asyncio.fixture
+async def general(logged) -> Api:
+    """Gerencia General: the last of the four signatures of an operation."""
+    api, _ = await logged("gerencia@transvalor.com")
     return api
 
 

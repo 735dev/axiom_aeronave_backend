@@ -6,6 +6,7 @@ from fastapi_restful.cbv import cbv
 from app.api.base import ContractController
 from app.config.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_NUMBER, MAX_PAGE_SIZE
 from app.schemas.common import Page
+from app.schemas.importing import ImportResult, UserImportRequest
 from app.schemas.user import (
     EffectivePermissionRead,
     TemporaryPasswordRead,
@@ -36,6 +37,15 @@ class UserController(ContractController):
         limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     ):
         return await super().list()
+
+    @router.post(
+        "/import/",
+        response_model=ImportResult,
+        summary="Bulk create of users (all or nothing; dry_run to preview)",
+    )
+    async def import_users(self, data: UserImportRequest):
+        report = await self.service.run_import(data.rows, data.dry_run)
+        return ImportResult.model_validate(report)
 
     @router.get("/{id}/", response_model=UserRead, summary="Get a user")
     async def retrieve(self, id: UUID):

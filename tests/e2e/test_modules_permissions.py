@@ -77,7 +77,7 @@ class TestPermissionCatalogClosed:
         extra = codes - FULL_CATALOG
         assert FULL_CATALOG <= codes
         # only types created by other tests may add derived permissions
-        assert all(c.endswith(".sin_archivos") for c in extra)
+        assert all(c.endswith((".sin_archivos", ".legacy_aircraft_text")) for c in extra)
 
     async def test_entry_shape(self, admin):
         entry = (await admin.get(f"{API}/permissions/")).json()[0]

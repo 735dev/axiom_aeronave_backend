@@ -36,8 +36,18 @@ class ClosingStampRead(BaseModel):
         }
 
 
+class StampSignatureRead(BaseModel):
+    step_code: str
+    step_name: str
+    role_name: str
+    user_name: str
+    signed_at: datetime
+    signature_url: str
+
+
 class ClosingStampFullRead(ClosingStampRead):
     signature_url: str
+    signatures: list[StampSignatureRead] = []
 
 
 class RoleProgressRead(BaseModel):
@@ -93,18 +103,24 @@ class ClosingBlockerRead(BaseModel):
     ticket_code: str
     detail: str | None = None
     step_code: str | None = None
+    role_name: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class SignerRead(BaseModel):
-    user_name: str
+    """One signature the closing demands, and whether the current user can give it."""
+
+    step_code: str
+    step_name: str
+    role_code: str | None = None
     role_name: str
-    has_signature: bool
+    required: bool = True
+    signed: bool
+    signed_by_name: str | None = None
+    signed_at: datetime | None = None
     can_sign: bool
-    step_code: str | None = None
-    step_role_name: str | None = None
-    step_signed: bool
+    has_signature: bool
 
 
 class ClosingSummaryRead(BaseModel):
@@ -120,5 +136,5 @@ class ClosingSummaryRead(BaseModel):
     supports_by_type: list[SupportTypeCountRead]
     blockers: list[ClosingBlockerRead]
     ready: bool
-    signer: SignerRead
+    signers: list[SignerRead]
     stamp: ClosingStampFullRead | None = None

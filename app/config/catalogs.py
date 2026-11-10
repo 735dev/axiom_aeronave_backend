@@ -27,7 +27,17 @@ CATALOG_DEFINITIONS = (
     CatalogDefinition(
         "aircraft_statuses", "Estados de aeronave", "Resultado posible de un reporte técnico"
     ),
-    CatalogDefinition("aircrafts", "Aeronaves", "Flota registrada, con matrícula y modelo"),
+    CatalogDefinition("aircraft_brands", "Marcas de aeronave", "Fabricantes de las aeronaves"),
+    CatalogDefinition(
+        "aircraft_models",
+        "Modelos de aeronave",
+        "Modelos por marca (el campo extra lleva el código de la marca)",
+    ),
+    CatalogDefinition(
+        "aircrafts",
+        "Aeronaves",
+        "Flota registrada, con matrícula y modelo (el campo extra lleva el código del modelo)",
+    ),
     CatalogDefinition("airports", "Aeropuertos", "Códigos y nombres usados en las rutas"),
     CatalogDefinition("locations", "Sedes", "Ubicaciones donde opera el personal"),
 )

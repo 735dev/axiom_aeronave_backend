@@ -9,11 +9,11 @@ from uuid import UUID
 
 from app.config.closing import (
     CLOSE_AWAITING_MESSAGE,
-    CLOSE_NO_SIGNATURE_DECISION,
-    CLOSE_NO_SIGNATURE_IMAGE,
+    CLOSE_MISSING_SIGNATURES,
     CLOSE_NO_SUPPORT_MESSAGE,
+    CLOSE_UNSIGNED_IMAGE,
     NO_RESPONSIBLE_ROLE,
-    SIGNATURE_STEP_CODE,
+    NO_ROLE_LABEL,
     BlockerKind,
 )
 from app.config.tickets import DecisionValue
@@ -27,6 +27,7 @@ class Blocker:
     ticket_code: str
     detail: str | None = None
     step_code: str | None = None
+    role_name: str | None = None
 
 
 @dataclass
@@ -78,8 +79,21 @@ def blockers(
     `awaiting` holds (ticket_id, ticket_code, name) of readings nobody validated yet."""
     found: list[Blocker] = []
     done = {d.step_code for d in root.decisions}
+    signed = signed_step_codes(root)
     for step in root.type.steps:
-        if step.required and step.code not in done:
+        if step.requires_signature:
+            if step.code not in signed:
+                found.append(
+                    Blocker(
+                        BlockerKind.SIGNATURE,
+                        root.id,
+                        root.code,
+                        step.name,
+                        step_code=step.code,
+                        role_name=role_label(step),
+                    )
+                )
+        elif step.required and step.code not in done:
             found.append(
                 Blocker(
                     BlockerKind.PENDING_STEP, root.id, root.code, step.name, step_code=step.code
@@ -101,10 +115,8 @@ def blockers(
 
 
 def is_ready(found: list[Blocker]) -> bool:
-    """Ready to sign: only the signature step itself is missing (signing is the act)."""
-    return all(
-        b.kind == BlockerKind.PENDING_STEP and b.step_code == SIGNATURE_STEP_CODE for b in found
-    )
+    """Ready to sign: only signatures are missing (signing is the act that closes)."""
+    return all(b.kind == BlockerKind.SIGNATURE for b in found)
 
 
 def hard_block_message(found: list[Blocker], skip: frozenset[BlockerKind]) -> str | None:
@@ -120,14 +132,37 @@ def hard_block_message(found: list[Blocker], skip: frozenset[BlockerKind]) -> st
     return None
 
 
+def role_label(step: Any) -> str:
+    return getattr(step, "role_name", None) or NO_ROLE_LABEL
+
+
+def signed_step_codes(root: Ticket) -> set[str]:
+    """Signing steps with a fulfilled, signed decision."""
+    wanted = {s.code for s in root.type.signing_steps}
+    return {
+        d.step_code
+        for d in root.decisions
+        if d.step_code in wanted and d.decision == DecisionValue.DONE.value and d.signed
+    }
+
+
 def signature_problem(root: Ticket) -> str | None:
-    """Why the signature cannot seal the closing, or None. Types without a signature step
+    """Why the signatures cannot seal the closing, or None. Types without signing steps
     close without one."""
-    if not any(s.code == SIGNATURE_STEP_CODE for s in root.type.steps):
+    steps = root.type.signing_steps
+    if not steps:
         return None
-    decision = next((d for d in root.decisions if d.step_code == SIGNATURE_STEP_CODE), None)
-    if decision is None or decision.decision != DecisionValue.DONE.value:
-        return CLOSE_NO_SIGNATURE_DECISION
-    if not decision.signed:
-        return CLOSE_NO_SIGNATURE_IMAGE
+    by_step = {d.step_code: d for d in root.decisions}
+    missing: list[str] = []
+    unsigned: list[str] = []
+    for step in steps:
+        decision = by_step.get(step.code)
+        if decision is None or decision.decision != DecisionValue.DONE.value:
+            missing.append(role_label(step))
+        elif not decision.signed:
+            unsigned.append(role_label(step))
+    if missing:
+        return CLOSE_MISSING_SIGNATURES.format(roles=", ".join(dict.fromkeys(missing)))
+    if unsigned:
+        return CLOSE_UNSIGNED_IMAGE.format(roles=", ".join(dict.fromkeys(unsigned)))
     return None

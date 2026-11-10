@@ -79,6 +79,8 @@ services:
     image: redis:7-alpine@sha256:c5d34a98396a4775e223c74e929162c35c5a2182901ba26b50ade939941ce14b
     container_name: aero-redis-prod
     restart: always
+    # Sin root desde el inicio: con cap_drop ALL el entrypoint no puede bajar de root (setpriv necesita SETUID).
+    user: redis
     # Store compartido del limitador de login (obligatorio con mas de una replica).
     command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "volatile-ttl"]
     healthcheck:

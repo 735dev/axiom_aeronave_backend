@@ -1,4 +1,5 @@
-from tests.e2e.conftest import API, png_data_url
+from tests.e2e.closing_support import sign
+from tests.e2e.conftest import API
 from tests.e2e.tickets_support import (
     children,
     get_ticket,
@@ -8,7 +9,7 @@ from tests.e2e.tickets_support import (
     ticket_url,
 )
 
-STEPS = ["planning", "requirements", "ground", "technical", "signature"]
+STEPS = ["planning", "requirements", "ground", "technical"]
 
 
 async def report_of(api, op):
@@ -18,14 +19,13 @@ async def report_of(api, op):
 
 
 async def decide_all(api, op):
-    # The closing needs the signer's own signature image: load one first.
-    sig = await api.patch(f"{API}/auth/me/signature/", json={"signature_url": png_data_url()})
-    assert sig.status_code == 200, sig.text
     for step in STEPS:
         r = await api.post(
             ticket_url(op, "decisions/"), json={"step_code": step, "decision": "done"}
         )
         assert r.status_code == 201, r.text
+    # The four signatures belong to their own roles, each with their own signature image.
+    await sign(api, op)
 
 
 class TestAutomaticTechnicalReport:

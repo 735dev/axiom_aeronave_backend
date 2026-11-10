@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from fastapi_basekit.exceptions.api_exceptions import NotFoundException
 
 from app.config.settings import get_settings
-from app.config.closing import ARRIVAL_KEY, SIGNATURE_STEP_CODE
+from app.config.closing import ARRIVAL_KEY
 from app.config.tickets import (
     AUTO_REPORT_PAYLOAD,
     AUTO_REPORT_ROLE_CODE,
@@ -54,6 +54,7 @@ from app.services.base import ProjectService
 from app.services.period_lock import PeriodLockMixin
 from app.services.ticket_hooks import CLOSE_CHECKS, TICKET_HOOKS, TicketContext, TicketEvent
 from app.utils import numbering
+from app.utils.aircraft_coherence import AircraftKeys, aircraft_coherence_errors
 from app.utils.money import Money, resolve_money, to_decimal
 from app.utils.quick_log import flight_time_problem
 from app.utils.review_gate import corrections as reading_corrections
@@ -245,6 +246,31 @@ class TicketService(PeriodLockMixin, ProjectService[Ticket]):
             for name in catalogs_needed(ticket_type.fields, keys)
         }
 
+    async def _aircraft_errors(
+        self, ticket_type: TicketType, result: PayloadResult
+    ) -> dict[str, str]:
+        """Marca, modelo y matrícula coherentes (solo los tipos que llevan marca y modelo)."""
+        brand = ticket_type.field_by_role(FieldRole.AIRCRAFT_BRAND.value)
+        model = ticket_type.field_by_role(FieldRole.AIRCRAFT_MODEL.value)
+        if brand is None or model is None or not (brand.catalog and model.catalog):
+            return {}
+        aircraft = ticket_type.field_by_role(FieldRole.AIRCRAFT.value)
+        keys = AircraftKeys(brand.key, model.key, aircraft.key if aircraft else None)
+        if not ({keys.brand, keys.model, keys.aircraft} & result.changed):
+            return {}
+        return aircraft_coherence_errors(
+            keys,
+            result.payload,
+            result.changed,
+            brands=await self.catalog.active_codes(brand.catalog),
+            models=await self.catalog.active_extras(model.catalog),
+            fleet=(
+                await self.catalog.active_extras(aircraft.catalog)
+                if aircraft and aircraft.catalog
+                else {}
+            ),
+        )
+
     async def _checked_payload(
         self,
         ticket_type: TicketType,
@@ -263,6 +289,8 @@ class TicketService(PeriodLockMixin, ProjectService[Ticket]):
             held=held,
             catalogs=catalogs,
         )
+        if not result.errors and not result.forbidden:
+            result.errors.update(await self._aircraft_errors(ticket_type, result))
         self._payload_failure(result, ticket_type)
         problem = flight_time_problem(result.payload)
         if problem:
@@ -786,7 +814,12 @@ class TicketService(PeriodLockMixin, ProjectService[Ticket]):
                 "Una regla exige la autorización de la dirección antes de dar por bueno este gasto.",
             )
         done = {d.step_code for d in ticket.decisions}
-        pending = [s.name for s in ticket_type.steps if s.required and s.code not in done]
+        # Signing steps answer in `closing_check`, which names the roles that still owe one.
+        pending = [
+            s.name
+            for s in ticket_type.steps
+            if s.required and not s.requires_signature and s.code not in done
+        ]
         if pending:
             raise TicketError("validation", f"Faltan pasos por registrar: {', '.join(pending)}.")
         if await self.extractions.has_pending_doubt(ticket.id):
@@ -808,13 +841,22 @@ class TicketService(PeriodLockMixin, ProjectService[Ticket]):
         body = data.model_dump() if hasattr(data, "model_dump") else dict(data)
         ticket = await self._scoped(id, lock=True)
         ticket_type = ticket.type
-        self._require_edit(ticket_type)
         step = ticket_type.step_by_code(body["step_code"])
         if step is None:
+            self._require_edit(ticket_type)
             raise TicketError("validation", "Ese paso no existe para este tipo.", "step_code")
-        await self._reject_if_locked(ticket, "registrar una decisión en")
         principal = self.principal
-        if (
+        # A signing step belongs to its role alone: signing is personal, so it needs neither
+        # edit rights on the type nor the "decide any" bypass (the step's role is enough).
+        if not step.requires_signature:
+            self._require_edit(ticket_type)
+        await self._reject_if_locked(ticket, "registrar una decisión en")
+        if step.requires_signature:
+            if step.role_id != principal.role_id:
+                raise TicketError(
+                    "forbidden", "Esa firma le corresponde a otro rol; no puedes registrarla."
+                )
+        elif (
             step.role_id is not None
             and step.role_id != principal.role_id
             and PERM_DECIDE_ANY not in principal.permissions
@@ -822,11 +864,10 @@ class TicketService(PeriodLockMixin, ProjectService[Ticket]):
             raise TicketError(
                 "forbidden", "Ese paso le corresponde a otro rol; no puedes registrarlo."
             )
-        # Only the fulfilled signature step carries the signer's signature image.
+        # Only a fulfilled signing step carries the decider's own signature image.
         signature = (
             await self.users.get_signature(principal.user_id)
-            if str(body["decision"]) == DecisionValue.DONE.value
-            and step.code == SIGNATURE_STEP_CODE
+            if str(body["decision"]) == DecisionValue.DONE.value and step.requires_signature
             else None
         )
         previous, current = await self.repository.upsert_decision(

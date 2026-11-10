@@ -10,6 +10,7 @@ lecturas que agregan):
 | `upload` | `POST /tickets/{id}/attachments/` | `RATE_LIMIT_UPLOAD_PER_ACCOUNT` (60) / `RATE_LIMIT_UPLOAD_PER_IP` (180) |
 | `search` | `GET /passengers/search/` | `RATE_LIMIT_SEARCH_PER_ACCOUNT` (60) / `RATE_LIMIT_SEARCH_PER_IP` (180) |
 | `export` | `GET /audit/export/`, `GET` y `POST /reconciliation/export/` | `RATE_LIMIT_EXPORT_PER_ACCOUNT` (10) / `RATE_LIMIT_EXPORT_PER_IP` (30) |
+| `import` | `POST /catalog-items/import/`, `POST /users/import/` (hasta 1000 filas, todo o nada) | `RATE_LIMIT_IMPORT_PER_ACCOUNT` (10) / `RATE_LIMIT_IMPORT_PER_IP` (30) |
 | `audit_search` | `GET /audit/` (incluye `search`, ILIKE sobre el diff) | `RATE_LIMIT_AUDIT_SEARCH_PER_ACCOUNT` (60) / `RATE_LIMIT_AUDIT_SEARCH_PER_IP` (180) |
 | `heavy_list` | `GET /tickets/`, `GET /tickets/totals/`, `GET /reconciliation/` | `RATE_LIMIT_HEAVY_LIST_PER_ACCOUNT` (240) / `RATE_LIMIT_HEAVY_LIST_PER_IP` (720) |
 

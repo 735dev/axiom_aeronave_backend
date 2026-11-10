@@ -5,17 +5,19 @@ from typing import Any
 
 from fastapi_basekit.exceptions.api_exceptions import NotFoundException
 
-from app.config.catalogs import CATALOG_DEFINITIONS, CATALOG_KEYS
+from app.config.catalogs import CATALOG_DEFINITIONS, CATALOG_ITEM_CODE_MAX, CATALOG_KEYS
 from app.exceptions.admin import AdminError
 from app.models.catalog import CatalogItem
 from app.repositories.catalog import CatalogItemRepository
 from app.services.base import ProjectService
+from app.services.bulk_import import BulkImportMixin
+from app.utils.bulk_import import RowPlan
 from app.utils.slug import slugify
 
 _CODE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
 
-class CatalogService(ProjectService[CatalogItem]):
+class CatalogService(BulkImportMixin, ProjectService[CatalogItem]):
     repository: CatalogItemRepository
 
     filter_whitelist = frozenset({"catalog", "is_active"})
@@ -40,19 +42,73 @@ class CatalogService(ProjectService[CatalogItem]):
             for d in CATALOG_DEFINITIONS
         ]
 
-    async def create(self, payload, check_fields=None) -> CatalogItem:
-        data = payload.model_dump() if hasattr(payload, "model_dump") else dict(payload)
-        catalog = data["catalog"]
-        if catalog not in CATALOG_KEYS:
-            raise AdminError("validation", "El catálogo indicado no existe.", field="catalog")
-        name = data["name"].strip()
-        code = (data.get("code") or "").strip() or slugify(name)
+    @staticmethod
+    def _resolve_code(name: str, raw_code: str | None) -> str:
+        code = (raw_code or "").strip() or slugify(name)
         if not code or not _CODE_PATTERN.match(code):
             raise AdminError(
                 "validation",
                 "El código solo admite letras, números, punto, guion y guion bajo.",
                 field="code",
             )
+        return code
+
+    # ---- bulk import hooks (see BulkImportMixin) -----------------------------------
+
+    async def import_prepare(self, rows, *, catalog: str) -> dict[str, Any]:
+        if catalog not in CATALOG_KEYS:
+            raise AdminError("validation", "El catálogo indicado no existe.", field="catalog")
+        return {
+            "catalog": catalog,
+            "existing": await self.repository.items_by_code(catalog),
+            "seen": set(),
+            "next_order": await self.repository.next_sort_order(catalog),
+        }
+
+    async def import_plan_row(self, row, context) -> RowPlan:
+        name = (row.name or "").strip()
+        if not 2 <= len(name) <= 200:
+            raise AdminError("validation", "El nombre debe tener entre 2 y 200 caracteres.", "name")
+        code = self._resolve_code(name, row.code)
+        if len(code) > CATALOG_ITEM_CODE_MAX:
+            raise AdminError(
+                "validation", f"El código admite hasta {CATALOG_ITEM_CODE_MAX} caracteres.", "code"
+            )
+        if code in context["seen"]:
+            raise AdminError("duplicate", "El código se repite en el archivo.", field="code")
+        context["seen"].add(code)
+        extra = (row.extra or "").strip() or None
+        if extra and len(extra) > 2000:
+            raise AdminError("validation", "El detalle admite hasta 2000 caracteres.", "extra")
+        current = context["existing"].get(code)
+        if current is None:
+            return RowPlan("create", {"code": code, "name": name, "extra": extra})
+        if current.name == name and current.extra == extra:
+            return RowPlan("skip")
+        return RowPlan("update", {"name": name, "extra": extra}, target=current)
+
+    async def import_apply_plan(self, plan: RowPlan, context) -> None:
+        if plan.action == "update":
+            await self.repository.update(plan.target.id, plan.data)
+            return
+        await self.repository.create(
+            {
+                **plan.data,
+                "catalog": context["catalog"],
+                "is_system": False,
+                "is_active": True,
+                "sort_order": context["next_order"],
+            }
+        )
+        context["next_order"] += 1
+
+    async def create(self, payload, check_fields=None) -> CatalogItem:
+        data = payload.model_dump() if hasattr(payload, "model_dump") else dict(payload)
+        catalog = data["catalog"]
+        if catalog not in CATALOG_KEYS:
+            raise AdminError("validation", "El catálogo indicado no existe.", field="catalog")
+        name = data["name"].strip()
+        code = self._resolve_code(name, data.get("code"))
         if await self.repository.get_by_catalog_code(catalog, code):
             raise AdminError(
                 "duplicate", "Ya existe un registro con ese código en este catálogo.", field="code"

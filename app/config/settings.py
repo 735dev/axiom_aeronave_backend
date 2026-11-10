@@ -73,6 +73,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_EXPORT_PER_ACCOUNT: int = Field(default=10, ge=1)
     RATE_LIMIT_EXPORT_PER_IP: int = Field(default=30, ge=1)
     # Free-text search over the audit trail.
+    RATE_LIMIT_IMPORT_PER_ACCOUNT: int = Field(default=10, ge=1)
+    RATE_LIMIT_IMPORT_PER_IP: int = Field(default=30, ge=1)
     RATE_LIMIT_AUDIT_SEARCH_PER_ACCOUNT: int = Field(default=60, ge=1)
     RATE_LIMIT_AUDIT_SEARCH_PER_IP: int = Field(default=180, ge=1)
     # Aggregating reads: ticket listing, ticket totals, reconciliation report.

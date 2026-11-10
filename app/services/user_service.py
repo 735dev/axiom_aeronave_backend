@@ -2,8 +2,10 @@ from __future__ import annotations
 
 
 from fastapi_basekit.exceptions.api_exceptions import NotFoundException
+from pydantic import EmailStr, TypeAdapter, ValidationError
 
 from app.config.access import SUPERUSER_ROLE_CODE
+from app.config.auth import FULL_NAME_MAX_LENGTH
 from app.config.security import hash_password
 from app.exceptions.admin import AdminError
 from app.models.access import AppUser, Permission, Role
@@ -12,6 +14,8 @@ from app.repositories.permission import PermissionRepository
 from app.repositories.role import RoleRepository
 from app.repositories.user import UserRepository
 from app.services.base import ProjectService
+from app.services.bulk_import import BulkImportMixin
+from app.utils.bulk_import import RowPlan
 from app.utils.effective_permissions import EffectivePermission, effective_breakdown
 from app.utils.passwords import generate_temporary_password, generate_unusable_password
 
@@ -20,7 +24,10 @@ SIGNATURE_OWNER_MESSAGE = "La firma solo puede cargarla su propietario desde su 
 SCALAR_FIELDS = ("full_name", "phone", "avatar_url", "aircraft_id", "location", "is_active")
 
 
-class UserService(ProjectService[AppUser]):
+_EMAIL = TypeAdapter(EmailStr)
+
+
+class UserService(BulkImportMixin, ProjectService[AppUser]):
     repository: UserRepository
     roles: RoleRepository
     permissions: PermissionRepository
@@ -43,7 +50,7 @@ class UserService(ProjectService[AppUser]):
             raise AdminError("validation", "El rol seleccionado no existe.", field="role_id")
         return role
 
-    def _require_role_within_reach(self, role: Role) -> None:
+    def _require_role_within_reach(self, role: Role, field: str = "role_id") -> None:
         """Assigning a role grants its permissions, so the caller must hold all of them."""
         held = self.principal.permissions
         beyond = sorted(p.code for p in role.permissions if p.is_active and p.code not in held)
@@ -51,7 +58,7 @@ class UserService(ProjectService[AppUser]):
             raise AdminError(
                 "privilege",
                 "No puedes asignar un rol con permisos que tú no tienes.",
-                field="role_id",
+                field=field,
             )
 
     async def _resolve_overrides(
@@ -106,6 +113,74 @@ class UserService(ProjectService[AppUser]):
             raise AdminError(
                 "protected", "Debe quedar al menos un superusuario activo en el sistema."
             )
+
+    # ---- bulk import hooks (see BulkImportMixin) -----------------------------------
+
+    async def import_prepare(self, rows, **params) -> dict:
+        codes = {(r.role_code or "").strip() for r in rows} - {""}
+        roles = {}
+        for code in codes:
+            role = await self.roles.get_by_code(code)
+            if role is not None and role.is_active:
+                roles[code] = role
+        return {
+            "roles": roles,
+            "taken": await self.repository.existing_emails(r.email or "" for r in rows),
+            "locations": await self.catalog.active_codes("locations"),
+            "aircrafts": await self.catalog.active_codes("aircrafts"),
+            "seen": set(),
+        }
+
+    async def import_plan_row(self, row, context) -> RowPlan:
+        full_name = (row.full_name or "").strip()
+        if not full_name or len(full_name) > FULL_NAME_MAX_LENGTH:
+            raise AdminError("validation", "El nombre es obligatorio.", field="full_name")
+        try:
+            email = str(_EMAIL.validate_python((row.email or "").strip())).lower()
+        except ValidationError:
+            raise AdminError("validation", "El correo no es válido.", field="email") from None
+        if email in context["seen"]:
+            raise AdminError("duplicate", "El correo se repite en el archivo.", field="email")
+        context["seen"].add(email)
+        if email in context["taken"]:
+            raise AdminError("duplicate", "Ya existe un usuario con ese correo.", field="email")
+        role = context["roles"].get((row.role_code or "").strip())
+        if role is None or role.code == SUPERUSER_ROLE_CODE:
+            raise AdminError("validation", "El rol indicado no existe.", field="role_code")
+        self._require_role_within_reach(role, field="role_code")
+        phone = (row.phone or "").strip() or None
+        if phone and len(phone) > 40:
+            raise AdminError("validation", "El teléfono admite hasta 40 caracteres.", "phone")
+        location = (row.location or "").strip() or None
+        if location and location not in context["locations"]:
+            raise AdminError("validation", "La sede no existe en el catálogo.", field="location")
+        aircraft = (row.aircraft_id or "").strip() or None
+        if aircraft and aircraft not in context["aircrafts"]:
+            raise AdminError(
+                "validation", "La aeronave no existe en el catálogo.", field="aircraft_id"
+            )
+        return RowPlan(
+            "create",
+            {
+                "email": email,
+                "full_name": full_name,
+                "phone": phone,
+                "role_id": role.id,
+                "aircraft_id": aircraft,
+                "location": location,
+            },
+        )
+
+    async def import_apply_plan(self, plan: RowPlan, context) -> None:
+        await self.repository.create(
+            {
+                **plan.data,
+                # Same as `create`: nobody knows this secret until a reset is issued.
+                "password_hash": hash_password(generate_unusable_password()),
+                "must_change_password": True,
+                "is_active": True,
+            }
+        )
 
     # ---- commands -------------------------------------------------------------------
 

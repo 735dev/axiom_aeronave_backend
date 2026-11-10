@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import undefer
 
 from app.models.access import AppUser
-from app.models.closing import TicketClosing
+from app.models.closing import TicketClosing, TicketClosingSignature
 from app.models.ticket import Ticket, TicketDecision
 from app.repositories.ticket_analytics import TicketAnalyticsRepository
 
@@ -50,6 +50,16 @@ class TicketClosingRepository(TicketAnalyticsRepository):
         )
         return (await self.session.execute(query)).scalars().first()
 
+    async def signatures_of(self, closing_id: UUID) -> list[TicketClosingSignature]:
+        """The signatures of a seal, with their images, in signing order."""
+        query = (
+            select(TicketClosingSignature)
+            .options(undefer(TicketClosingSignature.signature_url))
+            .where(TicketClosingSignature.closing_id == closing_id)
+            .order_by(TicketClosingSignature.position)
+        )
+        return list((await self.session.execute(query)).scalars().all())
+
     async def seal(
         self,
         ticket: Ticket,
@@ -62,6 +72,7 @@ class TicketClosingRepository(TicketAnalyticsRepository):
         totals: dict[str, Any],
         files_count: int,
         folder: str,
+        signatures: list[dict[str, Any]],
     ) -> TicketClosing:
         """Write the seal once. A second one for the same ticket is a no-op: the stamp is
         immutable and the first signature is the one that counts."""
@@ -80,6 +91,9 @@ class TicketClosingRepository(TicketAnalyticsRepository):
             folder=folder,
         )
         self.session.add(stamp)
+        await self.session.flush()
+        for position, item in enumerate(signatures, start=1):
+            self.session.add(TicketClosingSignature(closing_id=stamp.id, position=position, **item))
         await self.session.flush()
         await self.session.refresh(ticket, ["closing_record"])
         return stamp

@@ -26,6 +26,8 @@ class FieldRole(StrEnum):
     CURRENCY = "currency"
     ACCOUNTING_DATE = "accounting_date"
     AIRCRAFT = "aircraft"
+    AIRCRAFT_BRAND = "aircraft_brand"
+    AIRCRAFT_MODEL = "aircraft_model"
     ITEM = "item"
     QUANTITY = "quantity"
     UNIT = "unit"
@@ -38,6 +40,8 @@ ROLE_FIELD_TYPES: dict[FieldRole, frozenset[FieldType]] = {
     FieldRole.CURRENCY: frozenset({FieldType.SELECT}),
     FieldRole.ACCOUNTING_DATE: frozenset({FieldType.DATE}),
     FieldRole.AIRCRAFT: frozenset({FieldType.SELECT, FieldType.TEXT}),
+    FieldRole.AIRCRAFT_BRAND: frozenset({FieldType.SELECT}),
+    FieldRole.AIRCRAFT_MODEL: frozenset({FieldType.SELECT}),
     FieldRole.ITEM: frozenset({FieldType.SELECT, FieldType.TEXT}),
     FieldRole.QUANTITY: frozenset({FieldType.NUMBER}),
     FieldRole.UNIT: frozenset({FieldType.SELECT}),

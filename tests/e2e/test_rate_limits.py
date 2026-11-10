@@ -21,6 +21,8 @@ STRICT = {
     "RATE_LIMIT_SEARCH_PER_IP": str(IP),
     "RATE_LIMIT_EXPORT_PER_ACCOUNT": str(ACCOUNT),
     "RATE_LIMIT_EXPORT_PER_IP": str(IP),
+    "RATE_LIMIT_IMPORT_PER_ACCOUNT": str(ACCOUNT),
+    "RATE_LIMIT_IMPORT_PER_IP": str(IP),
     "RATE_LIMIT_AUDIT_SEARCH_PER_ACCOUNT": str(ACCOUNT),
     "RATE_LIMIT_AUDIT_SEARCH_PER_IP": str(IP),
     "RATE_LIMIT_HEAVY_LIST_PER_ACCOUNT": str(ACCOUNT),
@@ -72,6 +74,10 @@ async def hit_ticket_list(api):
     return await api.get(f"{API}/tickets/", params={"q": "yv"})
 
 
+async def hit_import(api):
+    return await api.post(f"{API}/users/import/", json={"rows": [], "dry_run": True})
+
+
 async def hit_ticket_totals(api):
     return await api.get(f"{API}/tickets/totals/")
 
@@ -89,6 +95,7 @@ ACTIONS = pytest.mark.parametrize(
         hit_reconciliation_report,
         hit_ticket_list,
         hit_ticket_totals,
+        hit_import,
     ],
     ids=[
         "extract",
@@ -101,6 +108,7 @@ ACTIONS = pytest.mark.parametrize(
         "reconciliation_report",
         "ticket_list",
         "ticket_totals",
+        "import",
     ],
 )
 
@@ -123,6 +131,7 @@ def remote_user(new_account, strict):
                 "analytics.view",
                 "audit.view",
                 "audit.export",
+                "users.manage",
             ]
         )
         api = strict(ip=ip)

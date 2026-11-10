@@ -46,6 +46,13 @@ class UserRepository(AuditedRepository[AppUser]):
             query = query.where(AppUser.id != exclude_id)
         return (await self.session.execute(query.limit(1))).first() is not None
 
+    async def existing_emails(self, emails: Iterable[str]) -> set[str]:
+        wanted = {e.strip().lower() for e in emails}
+        if not wanted:
+            return set()
+        query = select(AppUser.email).where(AppUser.email.in_(wanted))
+        return set((await self.session.execute(query)).scalars().all())
+
     async def get_for_session(self, user_id: UUID) -> AppUser | None:
         """User with role, permissions and exceptions, for the access middleware."""
         return await self.session.get(AppUser, user_id)

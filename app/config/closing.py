@@ -8,8 +8,6 @@ from enum import StrEnum
 
 # --- signed closing ------------------------------------------------------------------
 
-#: The step of the operation whose `done` decision is the signature of the closing.
-SIGNATURE_STEP_CODE = "signature"
 #: Document type reported for a support the inventory cannot classify.
 DEFAULT_DOCUMENT_TYPE = "comprobante"
 
@@ -19,21 +17,23 @@ class BlockerKind(StrEnum):
     UNRESOLVED_CHILD = "unresolved_child"
     EXPENSE_WITHOUT_SUPPORT = "expense_without_support"
     RECEIPT_AWAITING_VALIDATION = "receipt_awaiting_validation"
+    SIGNATURE = "signature"
 
 
 #: Blockers the closing act itself resolves or that the core already reports on its own.
 BLOCKERS_SKIPPED_BY_CLOSE_CHECK = frozenset(
-    {BlockerKind.PENDING_STEP, BlockerKind.UNRESOLVED_CHILD}
+    {BlockerKind.PENDING_STEP, BlockerKind.UNRESOLVED_CHILD, BlockerKind.SIGNATURE}
 )
 
 NO_RESPONSIBLE_ROLE = "Sin responsable"
 
 CLOSE_NO_SUPPORT_MESSAGE = "No se puede cerrar: {codes} no tiene(n) soporte cargado."
 CLOSE_AWAITING_MESSAGE = "No se puede cerrar: hay comprobantes sin validar ({codes})."
-CLOSE_NO_SIGNATURE_DECISION = "No se puede cerrar: falta la firma de cierre de quien corresponda."
-CLOSE_NO_SIGNATURE_IMAGE = (
-    "No se puede cerrar: quien firma debe cargar su firma en su perfil y volver a firmar."
+CLOSE_MISSING_SIGNATURES = "No se puede cerrar: faltan las firmas de {roles}."
+CLOSE_UNSIGNED_IMAGE = (
+    "No se puede cerrar: {roles} debe(n) cargar su firma en su perfil y volver a firmar."
 )
+NO_ROLE_LABEL = "el responsable"
 
 # --- reconciliation ------------------------------------------------------------------
 

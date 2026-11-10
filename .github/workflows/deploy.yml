@@ -1,0 +1,52 @@
+name: deploy
+# CD: despliega a produccion solo si el CI de `main` termino en verde. Manual disponible para re-desplegar.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+      - name: Preparar SSH (host fijado, sin confiar en el primer contacto)
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Desplegar (la llave solo puede ejecutar aero-deploy en el servidor)
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+        run: |
+          git archive --format=tar "$SHA" \
+            | ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+                "$DEPLOY_USER@$DEPLOY_HOST" "$SHA"
+      - name: Verificar que la API responde por HTTPS
+        env:
+          API_URL: ${{ vars.DEPLOY_API_URL }}
+        run: |
+          for i in $(seq 1 10); do
+            curl -fsS --max-time 10 "$API_URL/health/ready" && exit 0
+            sleep 6
+          done
+          echo "La API no respondio en $API_URL/health/ready" >&2
+          exit 1

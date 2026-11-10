@@ -92,6 +92,11 @@ class TicketType(IdMixin, TimestampMixin, Base):
     def step_by_code(self, code: str) -> "TicketTypeStep | None":
         return next((s for s in self.steps if s.code == code), None)
 
+    @property
+    def signing_steps(self) -> "list[TicketTypeStep]":
+        """The steps whose `done` decision is a signature, in order."""
+        return [s for s in self.steps if s.requires_signature]
+
     def field_by_role(self, role: str) -> "TicketTypeField | None":
         return next((f for f in self.fields if f.role == role), None)
 
@@ -115,6 +120,8 @@ class TicketTypeField(IdMixin, Base):
     catalog: Mapped[str | None] = mapped_column(String(40))
     read_only: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     role: Mapped[str | None] = mapped_column(String(30))
+    # Key of another select of the same type whose chosen code filters this one's options.
+    depends_on: Mapped[str | None] = mapped_column(String(60))
     view_permission: Mapped[str | None] = mapped_column(String(120))
     edit_permission: Mapped[str | None] = mapped_column(String(120))
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -157,6 +164,11 @@ class TicketTypeStep(IdMixin, Base):
     )
     responsible_area: Mapped[str | None] = mapped_column(String(120))
     required: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # A `done` decision on this step carries the decider's signature; closing the root needs
+    # every such step signed. Which steps sign is data, not a constant.
+    requires_signature: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     __table_args__ = (UniqueConstraint("type_id", "code", name="uq_ticket_type_step_type_code"),)
@@ -389,6 +401,9 @@ TicketType.default_role_name = column_property(  # type: ignore[attr-defined]
 )
 TicketTypeStep.role_name = column_property(  # type: ignore[attr-defined]
     select(Role.name).where(Role.id == TicketTypeStep.role_id).scalar_subquery()
+)
+TicketTypeStep.role_code = column_property(  # type: ignore[attr-defined]
+    select(Role.code).where(Role.id == TicketTypeStep.role_id).scalar_subquery()
 )
 Ticket.assigned_role_name = column_property(  # type: ignore[attr-defined]
     select(Role.name).where(Role.id == Ticket.assigned_role_id).scalar_subquery()

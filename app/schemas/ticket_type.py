@@ -37,6 +37,7 @@ class FieldBody(RequestModel):
     catalog: OptionalText = Field(default=None, max_length=40)
     read_only: bool = False
     role: FieldRole | None = None
+    depends_on: OptionalText = Field(default=None, max_length=60)
     view_permission: OptionalText = Field(default=None, max_length=120)
     edit_permission: OptionalText = Field(default=None, max_length=120)
 
@@ -57,6 +58,7 @@ class StepBody(RequestModel):
     role_id: UUID | None = None
     responsible_area: OptionalText = Field(default=None, max_length=120)
     required: bool = True
+    requires_signature: bool = False
 
 
 class TicketTypeCreate(RequestModel):
@@ -101,6 +103,7 @@ class FieldRead(BaseModel):
     catalog: str | None = None
     read_only: bool
     role: str | None = None
+    depends_on: str | None = None
     view_permission: str | None = None
     edit_permission: str | None = None
     sort_order: int
@@ -130,6 +133,7 @@ class StepRead(BaseModel):
     role_name: str | None = None
     responsible_area: str | None = None
     required: bool
+    requires_signature: bool = False
     sort_order: int
 
     model_config = ConfigDict(from_attributes=True)

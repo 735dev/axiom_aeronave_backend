@@ -13,8 +13,11 @@ from tests.e2e.closing_support import (
     ready_operation,
     set_signature,
     sign,
+    sign_step,
+    signer_of,
     supported_expense,
     validate_support,
+    SIGNING_STEPS,
 )
 from tests.e2e.conftest import API, jpeg_data_url, png_data_url
 from tests.e2e.tickets_support import (
@@ -27,22 +30,21 @@ from tests.e2e.tickets_support import (
 )
 
 
-def signature_decision(ticket: dict) -> dict:
-    return next(d for d in ticket["decisions"] if d["step_code"] == "signature")
+def signature_decision(ticket: dict, step: str = "sign_captain") -> dict:
+    return next(d for d in ticket["decisions"] if d["step_code"] == step)
 
 
 class TestDecisionSignature:
     async def test_the_decision_records_that_it_was_signed(self, ops):
-        await set_signature(ops)
         op = await make_operation(ops)
-        r = await sign(ops, op)
+        r = await sign_step(ops, op, "sign_captain")
         assert r.status_code == 201
         assert signature_decision(await get_ticket(ops, op))["signed"] is True
 
     async def test_without_a_stored_signature_the_decision_is_unsigned(self, ops):
-        await set_signature(ops, "")
         op = await make_operation(ops)
-        await sign(ops, op)
+        signer = await signer_of(ops, "sign_captain", with_signature=False)
+        assert (await decide(signer, op, "sign_captain")).status_code == 201
         assert signature_decision(await get_ticket(ops, op))["signed"] is False
 
     async def test_other_steps_are_never_marked_signed(self, ops):
@@ -55,57 +57,136 @@ class TestDecisionSignature:
         assert planning["signed"] is False
 
     async def test_the_ticket_body_never_carries_the_signature_image(self, ops):
-        await set_signature(ops)
         op = await make_operation(ops)
         await sign(ops, op)
         text = (await ops.get(ticket_url(op))).text
         assert "data:image" not in text
 
     async def test_a_signature_posted_in_the_decision_body_is_ignored(self, ops):
-        await set_signature(ops, "")
         op = await make_operation(ops)
-        r = await ops.post(
+        signer = await signer_of(ops, "sign_captain", with_signature=False)
+        r = await signer.post(
             ticket_url(op, "decisions/"),
-            json={"step_code": "signature", "decision": "done", "signature_url": png_data_url()},
+            json={
+                "step_code": "sign_captain",
+                "decision": "done",
+                "signature_url": png_data_url(),
+            },
         )
         assert r.status_code in (201, 422)
         if r.status_code == 201:
             assert signature_decision(await get_ticket(ops, op))["signed"] is False
 
-    async def test_the_signature_copied_is_the_deciders_not_anothers(self, ops, admin):
+    async def test_a_signing_step_never_copies_the_signature_of_another_user(self, ops, admin):
+        # The superuser has a signature, the captain does not: the decision stays unsigned.
         await set_signature(admin)
-        await set_signature(ops, "")
         op = await make_operation(ops)
-        await sign(ops, op)
+        signer = await signer_of(ops, "sign_captain", with_signature=False)
+        await decide(signer, op, "sign_captain")
         assert signature_decision(await get_ticket(ops, op))["signed"] is False
 
-    async def test_a_pilot_cannot_sign_the_closing(self, pilot, ops):
+
+class TestEachSignatureBelongsToItsRole:
+    async def test_the_four_steps_exist_in_order_and_require_signature(self, admin):
+        types = (await admin.get(f"{API}/ticket-types/")).json()
+        data = types["data"] if isinstance(types, dict) else types
+        operation = next(t for t in data if t["code"] == "operation")
+        signing = [s for s in operation["steps"] if s["requires_signature"]]
+        assert [s["code"] for s in signing] == list(SIGNING_STEPS)
+        assert [s["role_name"] for s in signing] == [
+            "Piloto",
+            "Mantenimiento",
+            "Coordinación AVSEC",
+            "Gerencia General",
+        ]
+        assert not any(s["code"] == "signature" for s in operation["steps"])
+
+    async def test_another_role_cannot_sign_a_step_that_is_not_theirs(self, ops, pilot):
         op = await make_operation(ops)
-        r = await sign(pilot, op)
-        assert r.status_code in (403, 409, 422)
+        for step in ("sign_maintenance", "sign_avsec", "sign_general"):
+            r = await decide(pilot, op, step)
+            assert r.status_code == 403, (step, r.text)
         assert not any(
-            d["step_code"] == "signature" for d in (await get_ticket(ops, op))["decisions"]
+            d["step_code"].startswith("sign_") for d in (await get_ticket(ops, op))["decisions"]
         )
+
+    async def test_decide_any_does_not_open_a_signature(self, ops, general):
+        # Operaciones and Gerencia General hold tickets.decide_any: still not their signature.
+        op = await make_operation(ops)
+        assert (await decide(ops, op, "sign_captain")).status_code == 403
+        assert (await decide(general, op, "sign_captain")).status_code == 403
+
+    async def test_the_superuser_cannot_sign_in_place_of_a_role(self, ops, admin):
+        op = await make_operation(ops)
+        assert (await decide(admin, op, "sign_general")).status_code == 403
+
+    async def test_each_signer_uses_their_own_profile_signature(self, ops):
+        op = await make_operation(ops)
+        await sign(ops, op)
+        decisions = (await get_ticket(ops, op))["decisions"]
+        by_step = {d["step_code"]: d for d in decisions}
+        assert [by_step[s]["signed"] for s in SIGNING_STEPS] == [True] * 4
+        assert [by_step[s]["decided_by"] for s in SIGNING_STEPS] == [
+            "Cap. Rodríguez",
+            "Gerencia de Mantenimiento",
+            "Coordinación AVSEC",
+            "Gerencia General",
+        ]
+
+    async def test_the_general_manager_signs_without_edit_rights(self, ops, general):
+        op = await make_operation(ops)
+        await set_signature(general)
+        assert (await decide(general, op, "sign_general")).status_code == 201
+        # Signing opens no editing: the same account cannot change the operation.
+        assert (await patch(general, op, title="otro")).status_code == 403
+
+    async def test_a_role_without_view_of_the_type_cannot_sign(self, ops, new_account):
+        api, _, _ = await new_account(["tickets.sign"])
+        op = await make_operation(ops)
+        r = await decide(api, op, "sign_general")
+        assert r.status_code in (403, 404)
 
 
 class TestCloseGuards:
-    async def test_without_a_signature_in_the_profile_the_close_is_422(self, ops):
-        await set_signature(ops, "")
+    async def test_with_three_of_four_signatures_the_close_is_422_and_names_who_is_missing(
+        self, ops
+    ):
         op = await ready_operation(ops)
-        await sign(ops, op)
+        for step in SIGNING_STEPS[:3]:
+            assert (await sign_step(ops, op, step)).status_code == 201
+        r = await close_operation(ops, op)
+        assert r.status_code == 422
+        assert "faltan las firmas de Gerencia General" in r.json()["detail"]
+        now = await get_ticket(ops, op)
+        assert now["status_is_final"] is False and now["closing"] is None
+
+    async def test_with_no_signature_the_close_names_every_role(self, ops):
+        op = await ready_operation(ops)
+        detail = (await close_operation(ops, op)).json()["detail"]
+        for role in ("Piloto", "Mantenimiento", "Coordinación AVSEC", "Gerencia General"):
+            assert role in detail
+
+    async def test_the_four_signatures_in_any_order_let_it_close(self, ops):
+        op = await ready_operation(ops)
+        for step in reversed(SIGNING_STEPS):
+            assert (await sign_step(ops, op, step)).status_code == 201
+        assert (await close_operation(ops, op)).status_code == 200
+
+    async def test_without_a_signature_in_the_profile_the_close_is_422(self, ops):
+        op = await ready_operation(ops)
+        await sign(ops, op, unsigned="sign_avsec")
         r = await close_operation(ops, op)
         assert r.status_code == 422
         assert "cargar su firma en su perfil" in r.json()["detail"]
+        assert "Coordinación AVSEC" in r.json()["detail"]
         now = await get_ticket(ops, op)
         assert now["status_is_final"] is False and now["closing"] is None
 
     async def test_loading_the_signature_and_signing_again_lets_it_close(self, ops):
-        await set_signature(ops, "")
         op = await ready_operation(ops)
-        await sign(ops, op)
+        await sign(ops, op, unsigned="sign_avsec")
         assert (await close_operation(ops, op)).status_code == 422
-        await set_signature(ops)
-        assert (await sign(ops, op)).status_code == 201
+        assert (await sign_step(ops, op, "sign_avsec")).status_code == 201
         assert (await close_operation(ops, op)).status_code == 200
 
     async def test_a_loaded_signature_without_the_decision_does_not_close(self, ops):
@@ -162,9 +243,8 @@ class TestCloseGuards:
         assert (await get_ticket(ops, op))["status_code"] != "closed"
 
     async def test_errors_are_spanish_and_generic(self, ops):
-        await set_signature(ops, "")
         op = await ready_operation(ops)
-        await sign(ops, op)
+        await sign(ops, op, unsigned="sign_captain")
         text = (await close_operation(ops, op)).text
         assert "Traceback" not in text and "sqlalchemy" not in text.lower()
 
@@ -188,9 +268,9 @@ class TestStamp:
         r = await close_operation(ops, op)
         assert r.status_code == 200
         stamp = (await get_ticket(ops, op))["closing"]
-        profile = await me(ops)
-        assert stamp["signed_by"] == profile["full_name"]
-        assert stamp["signed_role"] == "Gerencia de Operaciones"
+        # The seal's own signer is the last to sign: Gerencia General.
+        assert stamp["signed_by"] == "Gerencia General"
+        assert stamp["signed_role"] == "Gerencia General"
         assert stamp["has_signature"] is True and stamp["files_count"] == 2
         assert stamp["folder"].startswith("20") and stamp["signed_at"]
         assert stamp["totals"]["committed_base"] == expense["money"]["amount_base"]
@@ -202,6 +282,25 @@ class TestStamp:
         assert "data:image" not in (await ops.get(ticket_url(op))).text
         full = (await closing(ops, op))["stamp"]
         assert full["signature_url"].startswith("data:image/png;base64,")
+
+    async def test_the_seal_keeps_the_four_signatures_with_their_images(self, ops):
+        op = await closed_operation(ops)
+        stamp = (await closing(ops, op))["stamp"]
+        signatures = stamp["signatures"]
+        assert [x["step_code"] for x in signatures] == list(SIGNING_STEPS)
+        assert [x["role_name"] for x in signatures] == [
+            "Piloto",
+            "Mantenimiento",
+            "Coordinación AVSEC",
+            "Gerencia General",
+        ]
+        assert all(x["signature_url"].startswith("data:image/png;base64,") for x in signatures)
+        assert all(x["user_name"] and x["signed_at"] and x["step_name"] for x in signatures)
+
+    async def test_the_ticket_carries_no_signature_rows_or_images(self, ops):
+        op = await closed_operation(ops)
+        text = (await ops.get(ticket_url(op))).text
+        assert "signatures" not in text and "data:image" not in text
 
     async def test_the_summary_of_a_closed_operation_says_closed(self, ops):
         op = await closed_operation(ops)
@@ -255,7 +354,7 @@ class TestImmutability:
 
     async def test_signing_again_after_the_close_is_409_and_audited_as_denied(self, ops, admin):
         op = await closed_operation(ops)
-        assert (await sign(ops, op)).status_code == 409
+        assert (await sign_step(ops, op, "sign_captain")).status_code == 409
         events = await audit_events(admin, action="denied")
         assert any(e["entity_id"] == op["id"] for e in events)
 

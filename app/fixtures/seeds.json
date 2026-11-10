@@ -42,7 +42,7 @@
       "route": "/roles",
       "icon": "shield",
       "menu_permission": "roles.view",
-      "show_in_menu": false,
+      "show_in_menu": true,
       "sort_order": 4
     },
     {
@@ -167,6 +167,12 @@
       "is_system": true
     },
     {
+      "code": "tickets.sign",
+      "name": "Firmar el cierre de operaciones con la firma propia",
+      "module_code": "tickets",
+      "is_system": true
+    },
+    {
       "code": "ticket_types.manage",
       "name": "Definir tipos de ticket y sus formularios",
       "module_code": "tickets",
@@ -272,7 +278,8 @@
         "tickets.view",
         "tickets.create",
         "tickets.edit",
-        "notifications.view"
+        "notifications.view",
+        "tickets.sign"
       ]
     },
     {
@@ -283,7 +290,8 @@
       "permissions": [
         "tickets.view",
         "tickets.edit",
-        "notifications.view"
+        "notifications.view",
+        "tickets.sign"
       ]
     },
     {
@@ -321,7 +329,21 @@
         "tickets.view",
         "tickets.decide_any",
         "notifications.view",
-        "analytics.view"
+        "analytics.view",
+        "tickets.sign"
+      ]
+    },
+    {
+      "code": "avsec",
+      "name": "Coordinación AVSEC",
+      "description": "Seguridad de la aviación civil: coordina el traslado al taller y el retorno al hangar, y firma el cierre de la operación.",
+      "is_system": false,
+      "permissions": [
+        "tickets.view",
+        "tickets.edit",
+        "notifications.view",
+        "catalogs.view",
+        "tickets.sign"
       ]
     }
   ],
@@ -376,6 +398,22 @@
       "full_name": "Administración",
       "email": "admin@transvalor.com",
       "role_code": "admin",
+      "location": "caracas",
+      "avatar_url": null,
+      "signature_url": null
+    },
+    {
+      "full_name": "Gerencia General",
+      "email": "gerencia@transvalor.com",
+      "role_code": "executive",
+      "location": "caracas",
+      "avatar_url": null,
+      "signature_url": null
+    },
+    {
+      "full_name": "Coordinación AVSEC",
+      "email": "avsec@transvalor.com",
+      "role_code": "avsec",
       "location": "caracas",
       "avatar_url": null,
       "signature_url": null
@@ -539,24 +577,57 @@
         "is_system": true
       }
     ],
+    "aircraft_brands": [
+      {
+        "code": "beechcraft",
+        "name": "Beechcraft",
+        "sort_order": 1,
+        "is_system": false
+      },
+      {
+        "code": "piper",
+        "name": "Piper",
+        "sort_order": 2,
+        "is_system": false
+      }
+    ],
+    "aircraft_models": [
+      {
+        "code": "king_air_200",
+        "name": "King Air 200",
+        "extra": "beechcraft",
+        "sort_order": 1,
+        "is_system": false
+      },
+      {
+        "code": "cheyenne",
+        "name": "Cheyenne",
+        "extra": "piper",
+        "sort_order": 2,
+        "is_system": false
+      }
+    ],
     "aircrafts": [
       {
         "code": "YV2323",
         "name": "King Air 200",
         "sort_order": 1,
-        "is_system": false
+        "is_system": false,
+        "extra": "king_air_200"
       },
       {
         "code": "YV2528",
         "name": "Cheyenne",
         "sort_order": 2,
-        "is_system": false
+        "is_system": false,
+        "extra": "cheyenne"
       },
       {
         "code": "YV2822",
         "name": "King Air 200",
         "sort_order": 3,
-        "is_system": false
+        "is_system": false,
+        "extra": "king_air_200"
       }
     ],
     "airports": [
@@ -651,22 +722,37 @@
           "help": "Asignado automáticamente por el sistema."
         },
         {
+          "key": "aircraft",
+          "label": "Matrícula",
+          "type": "select",
+          "required": true,
+          "width": "half",
+          "catalog": "aircrafts",
+          "role": "aircraft",
+          "sort_order": 3
+        },
+        {
           "key": "aircraft_brand",
           "label": "Marca",
-          "type": "text",
+          "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 3,
-          "read_only": true
+          "sort_order": 4,
+          "read_only": false,
+          "catalog": "aircraft_brands",
+          "role": "aircraft_brand"
         },
         {
           "key": "aircraft_model",
           "label": "Modelo",
-          "type": "text",
+          "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 4,
-          "read_only": true
+          "sort_order": 5,
+          "read_only": false,
+          "catalog": "aircraft_models",
+          "role": "aircraft_model",
+          "depends_on": "aircraft_brand"
         },
         {
           "key": "kind",
@@ -1000,22 +1086,12 @@
           "sort_order": 34
         },
         {
-          "key": "aircraft",
-          "label": "Matrícula",
-          "type": "select",
-          "required": true,
-          "width": "half",
-          "catalog": "aircrafts",
-          "role": "aircraft",
-          "sort_order": 35
-        },
-        {
           "key": "passport",
           "label": "Pasaporte",
           "type": "file",
           "required": false,
           "width": "full",
-          "sort_order": 17
+          "sort_order": 35
         }
       ],
       "statuses": [
@@ -1095,11 +1171,36 @@
           "sort_order": 4
         },
         {
-          "code": "signature",
-          "name": "Firma de cierre",
-          "role_code": "operations",
+          "code": "sign_captain",
+          "name": "Firma del capitán de nave",
+          "role_code": "pilot",
           "required": true,
+          "requires_signature": true,
           "sort_order": 5
+        },
+        {
+          "code": "sign_maintenance",
+          "name": "Firma de coordinación de mantenimiento",
+          "role_code": "maintenance",
+          "required": true,
+          "requires_signature": true,
+          "sort_order": 6
+        },
+        {
+          "code": "sign_avsec",
+          "name": "Firma de coordinación AVSEC",
+          "role_code": "avsec",
+          "required": true,
+          "requires_signature": true,
+          "sort_order": 7
+        },
+        {
+          "code": "sign_general",
+          "name": "Firma de la gerencia general",
+          "role_code": "executive",
+          "required": true,
+          "requires_signature": true,
+          "sort_order": 8
         }
       ]
     },
@@ -1462,8 +1563,8 @@
         {
           "code": "movement",
           "name": "Traslado al taller y notificación a Gerencia General",
-          "role_code": "operations",
-          "responsible_area": "Gerente ASEC",
+          "role_code": "avsec",
+          "responsible_area": "Coord. AVSEC",
           "required": true,
           "sort_order": 3
         },
@@ -1478,8 +1579,8 @@
         {
           "code": "return",
           "name": "Retorno al hangar y notificación",
-          "role_code": "operations",
-          "responsible_area": "Gerente ASEC",
+          "role_code": "avsec",
+          "responsible_area": "Coord. AVSEC",
           "required": true,
           "sort_order": 5
         },

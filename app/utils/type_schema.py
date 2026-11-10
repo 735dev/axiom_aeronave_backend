@@ -117,11 +117,25 @@ def normalize_fields(raw: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
                 "catalog": catalog,
                 "read_only": read_only,
                 "role": role.value if role else None,
+                "depends_on": str(item.get("depends_on") or "").strip() or None,
                 "view_permission": item.get("view_permission") or None,
                 "edit_permission": item.get("edit_permission") or None,
                 "sort_order": index,
             }
         )
+    kinds = {f["key"]: f["type"] for f in fields}
+    for item in fields:
+        parent = item["depends_on"]
+        if parent is None:
+            continue
+        if item["type"] != FieldType.SELECT.value or parent == item["key"]:
+            raise _fail(f"El campo «{item['label']}» no puede depender de «{parent}».", "fields")
+        if kinds.get(parent) != FieldType.SELECT.value:
+            raise _fail(
+                f"El campo «{item['label']}» depende de «{parent}», que no es una lista del mismo "
+                "formulario.",
+                "fields",
+            )
     if FieldRole.CURRENCY.value in roles and FieldRole.AMOUNT.value not in roles:
         raise _fail("Un campo «moneda» necesita un campo «monto».", "fields")
     if FieldRole.UNIT.value in roles and FieldRole.QUANTITY.value not in roles:
@@ -211,6 +225,7 @@ def normalize_steps(raw: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
                 "role_id": item.get("role_id"),
                 "responsible_area": item.get("responsible_area") or None,
                 "required": item.get("required", True) is not False,
+                "requires_signature": item.get("requires_signature", False) is True,
                 "sort_order": index,
             }
         )

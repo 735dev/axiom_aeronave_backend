@@ -162,7 +162,15 @@ Detalle del modelo, reglas y puntos de extension: `docs/TICKETS.md`. Desviacione
 
 - **El cierre no es un endpoint**: sigue siendo `PATCH status_code=closed`, con `closing_check` en `CLOSE_CHECKS` y
   `seal_closing` en `STATUS_CHANGED`. El resumen `GET /tickets/{id}/closing/` es solo lectura.
-- **Firma**: `ticket_decision.signed` + imagen diferida, copiada solo en el paso `signature`; el sello inmutable vive
+- **Cuatro firmas (formato TVOA)**: el paso único `signature` (Operaciones) se sustituye por `sign_captain`,
+  `sign_maintenance`, `sign_avsec`, `sign_general`, marcados con `ticket_type_step.requires_signature` (dato, no
+  constante). Firma estrictamente personal por rol dueño; permiso nuevo `tickets.sign` (ruta acepta `tickets.edit` o
+  este) para que Gerencia General firme sin editar. Rol nuevo `avsec` ("Coordinación AVSEC"), dueño de `movement` y
+  `return` de `technical_report` (antes Operaciones). El sello conserva `ticket_closing` (firmante = última firma) y
+  añade `ticket_closing_signature` (una fila por firma, con su imagen congelada). Bases existentes:
+  `python -m app.scripts.apply_tvoa_signatures` (idempotente; respeta pasos que un admin ya movió); la semilla no pisa.
+  Cierres sellados antes del cambio: `stamp.signatures = []`, siguen leyéndose.
+- **Firma**: `ticket_decision.signed` + imagen diferida, copiada solo en pasos `requires_signature`; el sello inmutable vive
   en `ticket_closing`. La imagen sale únicamente en el resumen de cierre. Divergencia del simulador, que la copia en
   toda decisión `done` y la expone en el ticket.
 - **El hook de cierre evalúa sin alcance; el resumen con alcance** (documentado en CIERRE_Y_CONCILIACION.md).
@@ -251,3 +259,19 @@ Detalle del modelo, reglas y puntos de extension: `docs/TICKETS.md`. Desviacione
   reemplazado por un parseo lineal. `PYTHONFAULTHANDLER=1` y volcado por `SIGUSR1` quedan para diagnosticar el siguiente caso (`DESPLIEGUE.md` §8).
 - **Migraciones con varias replicas**: `python -m app.scripts.migrate` con candado asesor de sesion (clave fija) y espera acotada; el
   candado se pierde solo si el proceso muere. Un fallo de un paso sale distinto de 0 y la replica no arranca.
+
+## 13. Marca y modelo de aeronave como listas
+
+- **Defecto de origen**: `aircraft_brand` y `aircraft_model` nacieron `text` + `read_only` pensados para derivarse de la
+  matrícula, pero ningún código los rellenaba: el formulario los mostraba vacíos y bloqueados.
+- **Decisión del cliente: desplegables, no texto.** Dos catálogos administrables (`aircraft_brands`, `aircraft_models`); el
+  modelo depende de la marca (`ticket_type_field.depends_on`, migración `150b73ee31d0`) y la flota enlaza su modelo en
+  `aircrafts.extra`. Se reutiliza `extra` (ya existía) en vez de crear tablas de relación: son tres catálogos pequeños, editables
+  por el mismo CRUD e importador que el resto.
+- **El servidor valida la coherencia marca/modelo/matrícula** (bloquea, no avisa): es dato de aeronavegabilidad y un King Air con
+  matrícula de un Cheyenne no debe poder guardarse. El cliente rellena marca y modelo al elegir la matrícula; el servidor no
+  autocompleta para que lo guardado sea siempre lo que la persona vio.
+- **Supuesto a confirmar con el cliente**: King Air 200 → Beechcraft y Cheyenne → Piper (conocimiento general del sector, no un
+  dato del sistema ni de las reuniones). Si hay más marcas o modelos se cargan por Catálogos o con el importador.
+- Borrar una marca o un modelo no se bloquea por uso (el valor vive en el JSON del ticket, no en una columna): el ticket sigue
+  mostrando su código. Desactivarlo solo impide elegirlo en registros nuevos.

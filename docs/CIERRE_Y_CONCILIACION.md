@@ -14,16 +14,21 @@ Bloqueos, en este orden (el primero que falla manda el mensaje):
 1. Pasos obligatorios y hijos sin resolver (los resuelve el núcleo, ya existía).
 2. **Gasto sin soporte**: gasto vigente (cuenta como comprometido) sin ningún archivo vivo.
 3. **Comprobante sin validar**: archivo leído (`extracted`) cuya lectura nadie validó.
-4. **Firma**: debe existir la decisión del paso `signature` marcada `signed` (la firma del perfil existía en el
-   momento de decidir). Sin firma en el perfil: 422 "quien firma debe cargar su firma en su perfil y volver a firmar".
+4. **Firmas (cuatro)**: cada paso del tipo con `requires_signature=true` debe tener su decisión `done` marcada
+   `signed`. En TVOA: `sign_captain` (Piloto), `sign_maintenance` (Mantenimiento), `sign_avsec` (Coordinación AVSEC),
+   `sign_general` (Gerencia General), en cualquier orden. Faltan: 422 "No se puede cerrar: faltan las firmas de
+   Mantenimiento, ...". Hay decisión sin imagen: 422 "... debe cargar su firma en su perfil y volver a firmar".
+   Qué pasos firman es **dato del tipo** (`ticket_type_step.requires_signature`), no una constante del código.
 
 Anular (`cancelled`) no exige nada ni deja sello.
 
 ### La firma
 
-`POST /tickets/{id}/decisions/` para el paso `signature` copia **la imagen del perfil de quien decide** (nunca la del
-cuerpo, nunca la de otro) a `ticket_decision.signature_url` (columna diferida, no sale en listados) y marca
-`ticket_decision.signed`. Solo el paso `signature` copia imagen; el resto de pasos queda `signed=false`. La lectura del
+`POST /tickets/{id}/decisions/` en un paso `requires_signature` copia **la imagen del perfil de quien decide** (nunca la
+del cuerpo, nunca la de otro) a `ticket_decision.signature_url` (columna diferida, no sale en listados) y marca
+`ticket_decision.signed`. La firma es personal: solo el rol dueño del paso la registra (403 si no); ni `decide_any` ni
+el superusuario firman por otro. Permiso de ruta: `tickets.edit` o `tickets.sign` (Gerencia General firma sin poder
+editar). El resto de pasos queda `signed=false`. La lectura del
 ticket expone `decisions[].signed`, jamás la imagen.
 
 ### El sello
@@ -49,7 +54,11 @@ Permiso `tickets.view` (con `prefix_match`: el derivado `tickets.view.operation`
 tipo (no raíz) o fuera del alcance responde **404**. Devuelve: `progress` (pasos hechos/total y pendientes por rol,
 operación + hijos), `expenses` (ambas monedas, base congelada, `has_support`, `counts`), `totals`, `confirmed` e
 `in_progress` (en base y por moneda), `supports` y `supports_by_type`, `blockers` (con `kind`, `ticket_id`,
-`ticket_code`, `step_code`), `ready`, `signer` (`has_signature`, `can_sign`, paso y rol que firman), `stamp`.
+`ticket_code`, `step_code`, `role_name`; las firmas faltantes son `kind="signature"`), `ready`, `signers` (una entrada por
+paso firmante, en orden: `step_code`, `step_name`, `role_name`, `required`, `signed`, `signed_by_name`, `signed_at`,
+`has_signature`, `can_sign`; `can_sign` = el rol del principal es el del paso y aún no firmó), `stamp`
+(con `signatures[]`: `step_code`, `step_name`, `role_name`, `user_name`, `signed_at`, `signature_url`). Reemplaza al
+antiguo `signer` único.
 
 Divergencia consciente: **el resumen respeta el alcance de lectura de quien consulta** (un rol que ve solo
 operaciones no ve los gastos), pero **el hook de cierre evalúa el expediente completo**: no se puede cerrar con un

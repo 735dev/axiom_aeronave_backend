@@ -100,3 +100,25 @@ Entidad `ticket`: `create`, `update` (diff por campo del payload con la etiqueta
 - Columna `ticket_extraction.attachment_id` y propiedad `Ticket.attachments_count` (hoy 0) reservadas: cuando existan los
   adjuntos, la regla `attachments/missing` empieza a leer el conteo real sin cambios de contrato.
 - No construido: adjuntos/Blackbox, notificaciones, sellado de firma, conciliacion, pasajeros, bitacora rapida, `totals`.
+
+## Marca, modelo y matrícula de la operación (listas de catálogo)
+
+En el formulario TVOA la fila «Datos de la aeronave» va junto: **Matrícula, Marca, Modelo** (orden de campos del tipo
+`operation`: fecha, control, matrícula, marca, modelo, tipo de operación…).
+
+- `aircraft_brand` y `aircraft_model` son `select` de catálogo (`aircraft_brands`, `aircraft_models`), con roles
+  `aircraft_brand` / `aircraft_model`, **editables** (ya no `read_only`; antes quedaban vacíos y sin forma de llenarlos).
+- Vínculos en el catálogo, en `extra`: `aircraft_models.extra` = código de la marca; `aircrafts.extra` = código del modelo.
+- Campo nuevo de definición de campo: `depends_on` (clave de otro `select` del mismo tipo). `aircraft_model.depends_on =
+  "aircraft_brand"`: el cliente ofrece solo los items cuyo `extra` es la marca elegida. El constructor valida que el padre
+  exista, sea `select` y no sea el propio campo.
+- **Coherencia en el servidor** (`app/utils/aircraft_coherence.py`, llamada desde `_checked_payload`): al crear o editar,
+  `modelo.extra == marca` y `matrícula.extra == modelo`, con códigos activos. 422 con `errors` por campo:
+  `aircraft_model: «El modelo no corresponde a la marca.»`, `aircraft: «La matrícula no corresponde a ese modelo.»`
+  (y los espejos `aircraft_brand: «La marca no corresponde al modelo.»`, `aircraft_model: «El modelo no corresponde a la
+  matrícula.»` cuando lo escrito ahora es el otro extremo). Marca y modelo siguen siendo opcionales; el servidor **no**
+  rellena nada (lo hace el cliente al elegir la matrícula).
+- Solo se comprueban los pares que incluyen una clave escrita en esa petición y únicamente si ambos valores son códigos
+  conocidos del catálogo: un ticket anterior con texto libre se lee y se edita en otros campos sin revalidar lo que no se toca.
+- Bases existentes: `python -m app.scripts.apply_aircraft_catalogs` (idempotente; crea marcas/modelos, enlaza la flota solo
+  donde `extra` está vacío y convierte los campos del tipo `operation`).

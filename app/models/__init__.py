@@ -30,7 +30,7 @@ from app.models.ticket import (  # noqa: F401
     TicketTypeStatus,
     TicketTypeStep,
 )
-from app.models.closing import TicketClosing  # noqa: F401
+from app.models.closing import TicketClosing, TicketClosingSignature  # noqa: F401
 from app.models.passenger import TicketPassenger  # noqa: F401
 from app.models.reconciliation import (  # noqa: F401
     ReconciliationAcknowledgement,

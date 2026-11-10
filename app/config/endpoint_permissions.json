@@ -222,9 +222,10 @@
   "POST /api/v1/tickets/{id}/decisions/": {
     "access": "permission",
     "permissions": [
-      "tickets.edit"
+      "tickets.edit",
+      "tickets.sign"
     ],
-    "description": "The step must belong to the caller role unless tickets.decide_any.",
+    "description": "The step must belong to the caller role unless tickets.decide_any; a signing step belongs to its role alone and needs tickets.sign or tickets.edit.",
     "prefix_match": true
   },
   "POST /api/v1/tickets/{id}/authorize/": {
@@ -498,5 +499,17 @@
       "analytics.view"
     ],
     "description": "CSV of the month, formula-injection safe."
+  },
+  "POST /api/v1/users/import/": {
+    "access": "permission",
+    "permissions": [
+      "users.manage"
+    ]
+  },
+  "POST /api/v1/catalog-items/import/": {
+    "access": "permission",
+    "permissions": [
+      "catalogs.manage"
+    ]
   }
 }

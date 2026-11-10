@@ -1,0 +1,15 @@
+# Override para servidores donde un reverse proxy ajeno (Nginx Proxy Manager) ya es dueno de 80/443.
+# Se combina con el compose base:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.shared-proxy.yml ...
+# Caddy queda fuera (perfil "standalone", que nadie activa) y la api se une a la red del proxy, que la
+# alcanza por nombre (aero-api-prod:8000). La api sigue sin publicar puertos en el host.
+services:
+  caddy:
+    profiles: ["standalone"]
+  api:
+    networks: [proxy]
+
+networks:
+  proxy:
+    name: nginx-proxy-manager_default
+    external: true

@@ -14,6 +14,14 @@ from tests.e2e.tickets_support import (
 )
 
 OPERATION_STEPS = ("planning", "requirements", "ground", "technical")
+#: The four signatures of the TVOA form, each owned by one demo account (its own role).
+SIGNERS = {
+    "sign_captain": "piloto@transvalor.com",
+    "sign_maintenance": "mantenimiento@transvalor.com",
+    "sign_avsec": "avsec@transvalor.com",
+    "sign_general": "gerencia@transvalor.com",
+}
+SIGNING_STEPS = tuple(SIGNERS)
 
 
 def closing_url(ticket: dict | str) -> str:
@@ -38,8 +46,31 @@ async def decide(api: Api, ticket: dict | str, step: str, decision: str = "done"
     )
 
 
-async def sign(api: Api, ticket: dict | str):
-    return await decide(api, ticket, "signature")
+async def signer_of(api: Api, step: str, with_signature: bool = True) -> Api:
+    """A fresh session of the account that owns `step` (its signature loaded, or cleared)."""
+    session = Api(api.app)
+    response = await session.login(SIGNERS[step])
+    assert response.status_code == 200, response.text
+    signer = Api(api.app, session.ip, response.json()["token"])
+    await set_signature(signer, "png" if with_signature else "")
+    return signer
+
+
+async def sign_step(api: Api, ticket: dict | str, step: str):
+    """The owner of `step` signs it with their own profile signature."""
+    return await decide(await signer_of(api, step), ticket, step)
+
+
+async def sign(api: Api, ticket: dict | str, unsigned: str | None = None):
+    """All four signatures, each by its own role. Returns the last response. `unsigned` names
+    a step whose owner has no signature loaded in their profile (the decision is recorded
+    but carries no signature)."""
+    response = None
+    for step in SIGNING_STEPS:
+        signer = await signer_of(api, step, with_signature=step != unsigned)
+        response = await decide(signer, ticket, step)
+        assert response.status_code == 201, response.text
+    return response
 
 
 async def technical_reports(api: Api, op: dict) -> list[dict]:
@@ -54,7 +85,7 @@ async def resolve_reports(api: Api, op: dict) -> None:
 
 
 async def ready_operation(api: Api, **payload) -> dict:
-    """Operation with every step but the signature done and its technical report resolved."""
+    """Operation with every step but the signatures done and its technical report resolved."""
     op = await make_operation(api, **payload)
     for step in OPERATION_STEPS:
         r = await decide(api, op, step)

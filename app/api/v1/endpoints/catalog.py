@@ -12,6 +12,7 @@ from app.schemas.catalog import (
     CatalogItemUpdate,
 )
 from app.schemas.common import Page
+from app.schemas.importing import CatalogImportRequest, ImportResult
 from app.services.catalog_service import CatalogService
 from app.services.dependency import get_catalog_service
 
@@ -37,6 +38,15 @@ class CatalogController(ContractController):
         limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     ):
         return await super().list()
+
+    @router.post(
+        "/catalog-items/import/",
+        response_model=ImportResult,
+        summary="Bulk upsert of items by code (all or nothing; dry_run to preview)",
+    )
+    async def import_items(self, data: CatalogImportRequest):
+        report = await self.service.run_import(data.rows, data.dry_run, catalog=data.catalog)
+        return ImportResult.model_validate(report)
 
     @router.get("/catalog-items/{id}/", response_model=CatalogItemRead, summary="Catalog item")
     async def retrieve(self, id: UUID):

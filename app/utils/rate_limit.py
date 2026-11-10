@@ -238,6 +238,10 @@ class ActionThrottle:
                 settings.RATE_LIMIT_EXPORT_PER_ACCOUNT,
                 settings.RATE_LIMIT_EXPORT_PER_IP,
             ),
+            "import": (
+                settings.RATE_LIMIT_IMPORT_PER_ACCOUNT,
+                settings.RATE_LIMIT_IMPORT_PER_IP,
+            ),
             "audit_search": (
                 settings.RATE_LIMIT_AUDIT_SEARCH_PER_ACCOUNT,
                 settings.RATE_LIMIT_AUDIT_SEARCH_PER_IP,

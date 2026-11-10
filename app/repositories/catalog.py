@@ -40,6 +40,10 @@ class CatalogItemRepository(AuditedRepository[CatalogItem]):
         query = select(CatalogItem).where(CatalogItem.catalog == catalog, CatalogItem.code == code)
         return (await self.session.execute(query)).scalars().first()
 
+    async def items_by_code(self, catalog: str) -> dict[str, CatalogItem]:
+        query = select(CatalogItem).where(CatalogItem.catalog == catalog)
+        return {i.code: i for i in (await self.session.execute(query)).scalars().all()}
+
     async def active_code_exists(self, catalog: str, code: str) -> bool:
         query = (
             select(CatalogItem.id)
@@ -57,6 +61,13 @@ class CatalogItemRepository(AuditedRepository[CatalogItem]):
             CatalogItem.catalog == catalog, CatalogItem.is_active.is_(True)
         )
         return set((await self.session.execute(query)).scalars().all())
+
+    async def active_extras(self, catalog: str) -> dict[str, str | None]:
+        """Active items as `code -> extra` (the link to the parent catalog, when it has one)."""
+        query = select(CatalogItem.code, CatalogItem.extra).where(
+            CatalogItem.catalog == catalog, CatalogItem.is_active.is_(True)
+        )
+        return {code: extra for code, extra in (await self.session.execute(query)).all()}
 
     async def name_of(self, catalog: str, code: str) -> str | None:
         query = select(CatalogItem.name).where(
