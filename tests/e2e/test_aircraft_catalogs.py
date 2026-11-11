@@ -165,10 +165,10 @@ class TestCoherence:
         assert both.json()["errors"] == {
             "aircraft_model": "El modelo no corresponde a la matrícula."
         }
-        other = await patch(admin, op, payload={"captain": "Pérez"})
+        other = await patch(admin, op, payload={"dispatcher": "Pérez"})
         assert other.status_code == 200, other.text
         stored = (await get_ticket(admin, op))["payload"]
-        assert stored["aircraft_model"] == "king_air_200" and stored["captain"] == "Pérez"
+        assert stored["aircraft_model"] == "king_air_200" and stored["dispatcher"] == "Pérez"
 
     async def test_other_types_are_not_affected(self, admin):
         op = await make_operation(admin)

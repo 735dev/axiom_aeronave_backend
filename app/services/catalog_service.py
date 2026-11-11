@@ -30,6 +30,11 @@ class CatalogService(BulkImportMixin, ProjectService[CatalogItem]):
             raise AdminError("validation", "El catálogo indicado no existe.", field="catalog")
         return applied
 
+    async def user_options(self, role_code: str) -> list[dict[str, str]]:
+        return [
+            {"value": n, "label": n} for n in await self.repository.active_user_names(role_code)
+        ]
+
     async def definitions(self) -> list[dict[str, Any]]:
         counts = await self.repository.count_by_catalog()
         return [

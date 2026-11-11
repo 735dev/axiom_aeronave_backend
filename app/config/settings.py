@@ -120,6 +120,14 @@ class Settings(BaseSettings):
     BLACKBOX_TIMEOUT_SECONDS: float = Field(default=15.0, gt=0, le=120)
     BLACKBOX_RETRY_BASE_DELAY: float = Field(default=0.5, ge=0, le=10)
 
+    # Official Bs/USD rate used to pre-fill the operation form. "real" reads EXCHANGE_RATE_URL,
+    # "fake" returns a fixed value (tests, local work), "off" disables it. The destination is a
+    # setting, never user input. If the source fails the form asks for the rate by hand.
+    EXCHANGE_RATE_MODE: str = "real"
+    EXCHANGE_RATE_URL: str = "https://ve.dolarapi.com/v1/dolares/oficial"
+    EXCHANGE_RATE_TIMEOUT_SECONDS: float = Field(default=5.0, gt=0, le=30)
+    EXCHANGE_RATE_CACHE_SECONDS: int = Field(default=1800, ge=0, le=86400)
+
     # Receipt reader: "fake" (deterministic, local/test), "anthropic" or "off".
     RECEIPT_READER: str = "fake"
     ANTHROPIC_API_KEY: str | None = None
@@ -177,6 +185,12 @@ class Settings(BaseSettings):
             issues.append("ALLOWED_ORIGINS must not contain '*'")
         if self.BLACKBOX_MODE.lower() not in {"real", "fake"}:
             issues.append("BLACKBOX_MODE must be 'real' or 'fake'")
+        if self.EXCHANGE_RATE_MODE.lower() not in {"real", "fake", "off"}:
+            issues.append("EXCHANGE_RATE_MODE must be 'real', 'fake' or 'off'")
+        if not self.EXCHANGE_RATE_URL.startswith("https://"):
+            issues.append("EXCHANGE_RATE_URL must be https")
+        if self.is_production and self.EXCHANGE_RATE_MODE.lower() == "fake":
+            issues.append("EXCHANGE_RATE_MODE=fake would show an invented rate in production")
         if self.is_production and self.BLACKBOX_MODE.lower() == "fake":
             issues.append("BLACKBOX_MODE=fake would drop every attachment in production")
         if self.RECEIPT_READER.lower() not in {"fake", "anthropic", "off"}:

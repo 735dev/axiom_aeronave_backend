@@ -10,6 +10,7 @@ from app.schemas.catalog import (
     CatalogItemCreate,
     CatalogItemRead,
     CatalogItemUpdate,
+    UserOptionRead,
 )
 from app.schemas.common import Page
 from app.schemas.importing import CatalogImportRequest, ImportResult
@@ -27,6 +28,16 @@ class CatalogController(ContractController):
     @router.get("/catalogs/", response_model=list[CatalogDefinitionRead], summary="Catalogs")
     async def list_catalogs(self):
         return await self.service.definitions()
+
+    @router.get(
+        "/user-options/",
+        response_model=list[UserOptionRead],
+        summary="Active people of a role, for a form dropdown (captains, for instance)",
+    )
+    async def user_options(
+        self, role: str = Query(min_length=2, max_length=40, pattern=r"^[a-z][a-z0-9_]*$")
+    ):
+        return await self.service.user_options(role)
 
     @router.get("/catalog-items/", response_model=Page[CatalogItemRead], summary="Catalog items")
     async def list_items(

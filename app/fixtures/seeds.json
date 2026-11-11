@@ -98,7 +98,7 @@
       "description": "En qué operaciones viajó una persona",
       "route": "/pasajeros",
       "icon": "users",
-      "menu_permission": "tickets.view",
+      "menu_permission": "passengers.view",
       "show_in_menu": true,
       "sort_order": 9,
       "is_system": true,
@@ -227,6 +227,12 @@
       "is_system": true
     },
     {
+      "code": "passengers.view",
+      "name": "Consultar pasajeros de todas las operaciones",
+      "module_code": "passengers",
+      "is_system": true
+    },
+    {
       "code": "audit.view",
       "name": "Ver la bitácora de auditoría",
       "module_code": "audit",
@@ -266,7 +272,8 @@
         "ticket_types.manage",
         "notifications.view",
         "catalogs.view",
-        "analytics.view"
+        "analytics.view",
+        "passengers.view"
       ]
     },
     {
@@ -343,7 +350,8 @@
         "tickets.edit",
         "notifications.view",
         "catalogs.view",
-        "tickets.sign"
+        "tickets.sign",
+        "passengers.view"
       ]
     }
   ],
@@ -543,6 +551,9 @@
         "is_system": false
       }
     ],
+    "service_types": [],
+    "fbos": [],
+    "fuel_suppliers": [],
     "operation_scopes": [
       {
         "code": "domestic",
@@ -775,10 +786,11 @@
         {
           "key": "service_type",
           "label": "Tipo de servicio",
-          "type": "text",
+          "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 8
+          "sort_order": 8,
+          "catalog": "service_types"
         },
         {
           "key": "overnight",
@@ -825,7 +837,7 @@
         {
           "key": "passengers",
           "label": "Pasajeros",
-          "type": "number",
+          "type": "integer",
           "required": false,
           "width": "half",
           "sort_order": 14
@@ -836,7 +848,9 @@
           "type": "number",
           "required": false,
           "width": "half",
-          "sort_order": 15
+          "sort_order": 15,
+          "role": "exchange_rate",
+          "help": "La propone el sistema (tasa oficial). Puedes escribirla a mano."
         },
         {
           "key": "manifest",
@@ -879,10 +893,11 @@
         {
           "key": "captain",
           "label": "Capitán de nave",
-          "type": "text",
+          "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 18
+          "sort_order": 18,
+          "catalog": "users:pilot"
         },
         {
           "key": "flight_time",
@@ -903,10 +918,11 @@
         {
           "key": "fbo_name",
           "label": "Nombre del FBO",
-          "type": "text",
+          "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 21
+          "sort_order": 21,
+          "catalog": "fbos"
         },
         {
           "key": "dispatcher",
@@ -1013,10 +1029,11 @@
         {
           "key": "fuel_supplier",
           "label": "Broker / proveedor de combustible",
-          "type": "text",
+          "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 27
+          "sort_order": 27,
+          "catalog": "fuel_suppliers"
         },
         {
           "key": "fuel_quantity",

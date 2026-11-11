@@ -237,8 +237,8 @@ class TestPayloadValidation:
         assert r.status_code == 422
 
     async def test_text_is_trimmed(self, admin):
-        op = await make_operation(admin, captain="  Pérez  ")
-        assert op["payload"]["captain"] == "Pérez"
+        op = await make_operation(admin, dispatcher="  Pérez  ")
+        assert op["payload"]["dispatcher"] == "Pérez"
 
     async def test_valid_optional_values_are_stored(self, admin):
         op = await make_operation(
@@ -482,10 +482,10 @@ class TestUpdate:
         assert r.json()["title"] == "Nuevo título" and r.json()["due_at"].startswith("2031-05-05")
 
     async def test_payload_is_merged_not_replaced(self, admin):
-        op = await make_operation(admin, captain="Pérez")
-        r = await patch(admin, op, payload={"fbo_name": "Signature"})
+        op = await make_operation(admin, dispatcher="Pérez")
+        r = await patch(admin, op, payload={"flight_time": "2h"})
         data = r.json()["payload"]
-        assert data["captain"] == "Pérez" and data["fbo_name"] == "Signature"
+        assert data["dispatcher"] == "Pérez" and data["flight_time"] == "2h"
         assert data["origin"] == "CCS"
 
     async def test_required_field_cannot_be_blanked(self, admin):
@@ -494,10 +494,10 @@ class TestUpdate:
         assert r.status_code == 422 and "origin" in r.json()["errors"]
 
     async def test_optional_field_can_be_cleared(self, admin):
-        op = await make_operation(admin, captain="Pérez")
-        r = await patch(admin, op, payload={"captain": ""})
+        op = await make_operation(admin, dispatcher="Pérez")
+        r = await patch(admin, op, payload={"dispatcher": ""})
         assert r.status_code == 200
-        assert not r.json()["payload"].get("captain")
+        assert not r.json()["payload"].get("dispatcher")
 
     async def test_invalid_payload_value_rejected_and_nothing_changes(self, admin):
         op = await make_operation(admin)
@@ -536,13 +536,13 @@ class TestUpdate:
         assert r.json()["updated_at"] >= op["updated_at"]
 
     async def test_diff_is_audited_per_field(self, admin):
-        op = await make_operation(admin, captain="Pérez")
-        await patch(admin, op, payload={"captain": "García"})
+        op = await make_operation(admin, dispatcher="Pérez")
+        await patch(admin, op, payload={"dispatcher": "García"})
         events = (await admin.get(ticket_url(op, "history/?limit=100"))).json()["data"]
         update = next(e for e in events if e["action"] == "update")
-        change = next(c for c in update["changes"] if c["field"] == "captain")
+        change = next(c for c in update["changes"] if c["field"] == "dispatcher")
         assert change["from"] == "Pérez" and change["to"] == "García"
-        assert change["label"] == "Capitán de nave"
+        assert change["label"] == "Nombre del despachador"
 
     @pytest.mark.parametrize(
         "forged",

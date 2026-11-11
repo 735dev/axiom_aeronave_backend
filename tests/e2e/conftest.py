@@ -37,6 +37,7 @@ os.environ.update(
         "BLACKBOX_MODE": "fake",
         "BLACKBOX_RETRY_BASE_DELAY": "0.001",
         "RECEIPT_READER": "fake",
+        "EXCHANGE_RATE_MODE": "fake",
         # The in-process app runs the whole suite from a handful of accounts: its action
         # budgets are lifted. tests/e2e/test_rate_limits.py runs a server with real ones.
         "RATE_LIMIT_EXTRACT_PER_ACCOUNT": "100000",
@@ -216,6 +217,7 @@ PERMISSION_CODES = {
     "tickets.edit",
     "tickets.decide_any",
     "tickets.sign",
+    "passengers.view",
     "ticket_types.manage",
     "notifications.view",
     "users.view",

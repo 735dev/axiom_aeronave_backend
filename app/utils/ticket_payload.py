@@ -22,7 +22,7 @@ from app.config.tickets import (
     FieldType,
 )
 from app.utils.money import to_decimal
-from app.config.tickets import AMOUNT_MAX
+from app.config.tickets import AMOUNT_MAX, INTEGER_MAX
 
 REQUIRED_MESSAGE = "Este campo es obligatorio"
 READ_ONLY_MESSAGE = "Este campo lo asigna el sistema"
@@ -77,10 +77,25 @@ def _normalize(
             return None, "Debe ser un número"
         if abs(number) > AMOUNT_MAX:
             return None, "El valor es demasiado alto"
-        if kind == FieldType.MONEY and number < 0:
-            return None, "El monto no puede ser negativo"
+        if number < 0:
+            return None, (
+                "El monto no puede ser negativo"
+                if kind == FieldType.MONEY
+                else "El valor no puede ser negativo"
+            )
         if isinstance(value, float) or "." in str(value):
             return float(number), None
+        return int(number), None
+    if kind == FieldType.INTEGER:
+        number = to_decimal(value)
+        if number is None:
+            return None, "Debe ser un número"
+        if number < 0:
+            return None, "No puede ser negativo"
+        if number != number.to_integral_value():
+            return None, "Debe ser un número entero"
+        if number > INTEGER_MAX:
+            return None, "El valor es demasiado alto"
         return int(number), None
     if kind == FieldType.SELECT:
         if not isinstance(value, str) or not value.strip():
@@ -169,6 +184,10 @@ def validate_payload(
                 else:
                     base.pop(key)
                     result.changed.add(key)
+            continue
+        if key in base and base[key] == value:
+            # Unchanged: a value written before its field became a list (free text that is not
+            # an option) must not block editing the rest of the record.
             continue
         normalized, error = _normalize(definition, value, catalogs)
         if error:

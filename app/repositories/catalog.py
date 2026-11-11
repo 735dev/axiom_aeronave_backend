@@ -7,7 +7,8 @@ from sqlalchemy import func, select
 from sqlalchemy.sql import Select
 
 from app.config.audit import AuditEntity
-from app.config.catalogs import CATALOG_USAGE
+from app.config.catalogs import CATALOG_USAGE, is_user_source, user_source_role
+from app.models.access import AppUser, Role
 from app.models.catalog import CatalogItem
 from app.repositories.base import AuditedRepository
 
@@ -56,7 +57,19 @@ class CatalogItemRepository(AuditedRepository[CatalogItem]):
         )
         return (await self.session.execute(query)).first() is not None
 
+    async def active_user_names(self, role_code: str) -> list[str]:
+        """Full names of the active users of a role, in alphabetical order."""
+        query = (
+            select(AppUser.full_name)
+            .join(Role, Role.id == AppUser.role_id)
+            .where(Role.code == role_code, AppUser.is_active.is_(True))
+            .order_by(AppUser.full_name)
+        )
+        return list((await self.session.execute(query)).scalars().all())
+
     async def active_codes(self, catalog: str) -> set[str]:
+        if is_user_source(catalog):
+            return set(await self.active_user_names(user_source_role(catalog)))
         query = select(CatalogItem.code).where(
             CatalogItem.catalog == catalog, CatalogItem.is_active.is_(True)
         )

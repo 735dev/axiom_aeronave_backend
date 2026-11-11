@@ -3,6 +3,8 @@ from datetime import date
 import pytest
 
 from tests.e2e.tickets_support import (
+    OPERATION,
+    TICKETS,
     get_ticket,
     make_expense,
     make_operation,
@@ -106,10 +108,18 @@ class TestDualCurrency:
         assert r.status_code == 200
         assert (await post_expense(admin, op, currency="VES", amount=100)).status_code == 422
 
-    @pytest.mark.parametrize("rate", [0, -5])
-    async def test_non_positive_rate_cannot_convert(self, admin, rate):
-        op = await make_operation(admin, exchange_rate=rate)
+    async def test_a_zero_rate_cannot_convert(self, admin):
+        op = await make_operation(admin, exchange_rate=0)
         assert (await post_expense(admin, op, currency="VES", amount=100)).status_code == 422
+
+    async def test_a_negative_rate_is_refused_when_the_operation_is_saved(self, admin):
+        body = {
+            "type_code": "operation",
+            "title": "x",
+            "payload": {**OPERATION, "exchange_rate": -5},
+        }
+        r = await admin.post(TICKETS, json=body)
+        assert r.status_code == 422 and "exchange_rate" in r.json()["errors"]
 
     async def test_conversion_rounds_to_cents(self, admin):
         op = await op_with_rate(admin, 3)

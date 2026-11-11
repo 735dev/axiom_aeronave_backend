@@ -221,7 +221,7 @@ class TestManifestPermissions:
         assert await manifest(ops, op) == []
 
     async def test_no_ticket_permission_at_all_is_403(self, new_account, ops):
-        nobody, _, _ = await new_account(["notifications.view"])
+        nobody, _, _ = await new_account(["notifications.view", "passengers.view"])
         op = await make_operation(ops)
         assert (await nobody.get(ticket_url(op, "passengers/"))).status_code == 403
 
@@ -264,12 +264,14 @@ class TestSearch:
         r = await search(ops, "zzzz-inexistente-" + tag())
         assert r.status_code == 200 and r.json() == {"data": []}
 
-    async def test_blank_or_missing_query_lists_nobody(self, ops):
-        await put(ops, await make_operation(ops), [person()])
+    async def test_blank_or_missing_query_lists_the_most_recent_people(self, ops):
+        t = tag()
+        await put(ops, await make_operation(ops, date="2099-01-01"), [person(f"Reciente {t}")])
         for q in ("", "   "):
-            assert await found(ops, q) == []
+            hits = await found(ops, q)
+            assert len(hits) <= 50 and f"Reciente {t}" in [h["full_name"] for h in hits]
         r = await ops.get(f"{API}/passengers/search/")
-        assert r.status_code == 200 and r.json() == {"data": []}
+        assert r.status_code == 200 and len(r.json()["data"]) <= 50
 
     async def test_a_short_name_does_not_leak_documents_that_contain_the_letters(self, ops):
         await put(ops, await make_operation(ops), [person("Otro Nombre", "ANA123456")])
@@ -315,6 +317,29 @@ class TestSearch:
 
     async def test_anonymous_gets_401(self, anon):
         assert (await anon.get(f"{API}/passengers/search/?q=maria")).status_code == 401
+
+
+class TestWhoMaySearch:
+    """Looking people up across operations is granted per role, never decided by the system."""
+
+    async def test_reading_tickets_is_not_enough_to_search_people(self, new_account):
+        api, _, _ = await new_account(["tickets.view"])
+        assert (await search(api, "maria")).status_code == 403
+
+    async def test_the_permission_alone_opens_the_search_within_the_readable_scope(
+        self, ops, new_account
+    ):
+        t = tag()
+        await put(ops, await make_operation(ops), [person(f"Alcance {t}")])
+        api, _, _ = await new_account(["passengers.view", "tickets.view"])
+        assert [h["full_name"] for h in await found(api, f"alcance {t}")] == [f"Alcance {t}"]
+
+    async def test_the_permission_without_reading_operations_is_still_a_404(self, new_account):
+        api, _, _ = await new_account(["passengers.view"])
+        assert (await search(api, "maria")).status_code == 404
+
+    async def test_the_pilot_role_does_not_have_it_by_default(self, pilot):
+        assert (await search(pilot, "maria")).status_code == 403
 
 
 class TestWildcardAndInjectionAbuse:
@@ -369,38 +394,41 @@ class TestSearchScope:
     async def test_a_role_that_reads_no_operation_gets_404_and_no_data(self, new_account, ops):
         t = tag()
         await put(ops, await make_operation(ops), [person(f"Secreto {t}")])
-        outsider, _, _ = await new_account(["tickets.view.expense"])
+        outsider, _, _ = await new_account(["tickets.view.expense", "passengers.view"])
         r = await search(outsider, f"secreto {t}")
         assert r.status_code == 404 and "Secreto" not in r.text
 
     async def test_a_role_with_no_ticket_permission_at_all_gets_404(self, new_account, ops):
         t = tag()
         await put(ops, await make_operation(ops), [person(f"Privado {t}")])
-        nobody, _, _ = await new_account(["notifications.view"])
+        nobody, _, _ = await new_account(["notifications.view", "passengers.view"])
         r = await search(nobody, f"privado {t}")
         assert r.status_code == 404 and "Privado" not in r.text
 
     async def test_a_role_that_reads_operations_sees_the_results(self, new_account, ops):
         t = tag()
         await put(ops, await make_operation(ops), [person(f"Visible {t}")])
-        viewer, _, _ = await new_account(["tickets.view.operation"])
+        viewer, _, _ = await new_account(["tickets.view.operation", "passengers.view"])
         assert len(await found(viewer, f"visible {t}")) == 1
 
-    async def test_global_view_sees_the_results(self, pilot, ops):
+    async def test_global_view_sees_the_results(self, new_account, ops):
         t = tag()
         await put(ops, await make_operation(ops), [person(f"Global {t}")])
-        assert len(await found(pilot, f"global {t}")) == 1
+        viewer, _, _ = await new_account(["tickets.view", "passengers.view"])
+        assert len(await found(viewer, f"global {t}")) == 1
 
     async def test_reading_another_type_does_not_open_operations(self, new_account, ops):
         t = tag()
         await put(ops, await make_operation(ops), [person(f"Ajeno {t}")])
-        reader, _, _ = await new_account(["tickets.view.expense", "tickets.view.technical_report"])
+        reader, _, _ = await new_account(
+            ["tickets.view.expense", "tickets.view.technical_report", "passengers.view"]
+        )
         assert (await search(reader, f"ajeno {t}")).status_code == 404
 
     async def test_the_404_for_no_scope_looks_like_the_404_of_a_missing_thing(
         self, new_account, ops
     ):
-        outsider, _, _ = await new_account(["tickets.view.expense"])
+        outsider, _, _ = await new_account(["tickets.view.expense", "passengers.view"])
         r = await search(outsider, "x")
         assert (
             r.json().keys() == (await outsider.get(ticket_url(ZERO, "passengers/"))).json().keys()
@@ -450,14 +478,14 @@ class TestCrossScope:
     async def test_search_is_404_and_leaks_nothing_for_every_outsider(self, new_account, ops):
         _, t = await self._foreign_manifest(ops)
         for permissions in self.OUTSIDERS:
-            outsider, _, _ = await new_account(permissions)
+            outsider, _, _ = await new_account([*permissions, "passengers.view"])
             for query in (f"reservado {t}", f"V{t}", "a"):
                 r = await search(outsider, query)
                 assert r.status_code == 404, (permissions, query, r.status_code)
                 assert t not in r.text and "Reservado" not in r.text
 
     async def test_search_404_matches_the_missing_thing_404(self, new_account, ops):
-        outsider, _, _ = await new_account(self.OUTSIDERS[0])
+        outsider, _, _ = await new_account([*self.OUTSIDERS[0], "passengers.view"])
         denied = await search(outsider, "maria")
         ghost = await outsider.get(ticket_url(ZERO, "passengers/"))
         assert denied.status_code == ghost.status_code == 404
@@ -465,7 +493,9 @@ class TestCrossScope:
 
     async def test_an_insider_still_works_with_the_same_requests(self, new_account, ops):
         op, t = await self._foreign_manifest(ops)
-        insider, _, _ = await new_account(["tickets.view.operation", "tickets.edit.operation"])
+        insider, _, _ = await new_account(
+            ["tickets.view.operation", "tickets.edit.operation", "passengers.view"]
+        )
         assert len(await manifest(insider, op)) == 1
         assert (await put(insider, op, [JUAN])).status_code == 200
         assert (await search(insider, "juan rodriguez")).status_code == 200

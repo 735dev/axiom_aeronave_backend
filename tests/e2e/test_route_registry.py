@@ -75,6 +75,9 @@ class TestRouteRegistry:
             ("get", f"{API}/auth/me/signature/"),
             ("patch", f"{API}/auth/me/signature/"),
             ("get", f"{API}/modules/"),
+            # Pickers and the day's rate: read-only helpers of the ticket form.
+            ("get", f"{API}/user-options/"),
+            ("get", f"{API}/exchange-rate/"),
             ("get", f"{API}/catalog-items/"),
             ("get", f"{API}/catalog-items/{{id}}/"),
             # The pilot works tickets, so it reads the forms and the timeline of its own.
@@ -95,7 +98,6 @@ class TestRouteRegistry:
             ("get", f"{API}/tickets/{{id}}/passengers/"),
             ("put", f"{API}/tickets/{{id}}/passengers/"),
             ("post", f"{API}/tickets/{{id}}/passengers/"),
-            ("get", f"{API}/passengers/search/"),
             # Attachments follow ticket scope (404 outside it); notices are the caller's own.
             ("get", f"{API}/tickets/{{id}}/attachments/"),
             ("post", f"{API}/tickets/{{id}}/attachments/"),

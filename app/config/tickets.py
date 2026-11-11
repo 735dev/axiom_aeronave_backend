@@ -10,6 +10,7 @@ class FieldType(StrEnum):
     TEXT = "text"
     TEXTAREA = "textarea"
     NUMBER = "number"
+    INTEGER = "integer"
     MONEY = "money"
     SELECT = "select"
     DATE = "date"
@@ -32,6 +33,7 @@ class FieldRole(StrEnum):
     QUANTITY = "quantity"
     UNIT = "unit"
     SUPPLIER = "supplier"
+    EXCHANGE_RATE = "exchange_rate"
 
 
 # Field types that can carry each role.
@@ -43,7 +45,8 @@ ROLE_FIELD_TYPES: dict[FieldRole, frozenset[FieldType]] = {
     FieldRole.AIRCRAFT_BRAND: frozenset({FieldType.SELECT}),
     FieldRole.AIRCRAFT_MODEL: frozenset({FieldType.SELECT}),
     FieldRole.ITEM: frozenset({FieldType.SELECT, FieldType.TEXT}),
-    FieldRole.QUANTITY: frozenset({FieldType.NUMBER}),
+    FieldRole.QUANTITY: frozenset({FieldType.NUMBER, FieldType.INTEGER}),
+    FieldRole.EXCHANGE_RATE: frozenset({FieldType.NUMBER}),
     FieldRole.UNIT: frozenset({FieldType.SELECT}),
     FieldRole.SUPPLIER: frozenset({FieldType.TEXT}),
 }
@@ -141,6 +144,8 @@ PERM_MANAGE_TYPES = "ticket_types.manage"
 BASE_CURRENCY = "USD"
 CURRENCY_CATALOG = "currencies"
 AMOUNT_MAX = 10**12
+#: Whole-number fields (passenger counts and the like): far above any real value, below overflow.
+INTEGER_MAX = 10**6
 RATE_TOLERANCE = 1e-9
 MONEY_PLACES = 2
 RATE_PLACES = 12

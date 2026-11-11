@@ -10,10 +10,10 @@ async def find(admin, catalog, code):
 
 
 class TestCatalogDefinitions:
-    async def test_lists_eleven_catalogs_with_counts(self, admin):
+    async def test_lists_fourteen_catalogs_with_counts(self, admin):
         r = await admin.get(f"{API}/catalogs/")
         body = r.json()
-        assert r.status_code == 200 and isinstance(body, list) and len(body) == 11
+        assert r.status_code == 200 and isinstance(body, list) and len(body) == 14
         counts = {c["key"]: c["items_count"] for c in body}
         assert counts["aircrafts"] >= 3 and counts["airports"] >= 5 and counts["currencies"] >= 2
 
@@ -70,6 +70,7 @@ class TestCatalogItemsRead:
             "currencies": 2,
             "operation_kinds": 4,
             "operation_scopes": 2,
+            "service_types": 0,
             "aircraft_statuses": 3,
             "aircrafts": 3,
             "airports": 5,

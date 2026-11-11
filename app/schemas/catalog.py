@@ -15,6 +15,13 @@ class CatalogDefinitionRead(BaseModel):
     items_count: int
 
 
+class UserOptionRead(BaseModel):
+    """A person offered in a form dropdown. Only the name leaves the server."""
+
+    value: str
+    label: str
+
+
 class CatalogItemRead(BaseModel):
     id: UUID
     catalog: str

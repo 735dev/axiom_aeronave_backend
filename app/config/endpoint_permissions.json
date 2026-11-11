@@ -37,6 +37,14 @@
     "access": "authenticated",
     "description": "Owner taken from the token."
   },
+  "GET /api/v1/user-options/": {
+    "access": "authenticated",
+    "description": "Names of the active people of a role (captains) that a form dropdown offers."
+  },
+  "GET /api/v1/exchange-rate/": {
+    "access": "authenticated",
+    "description": "Official Bs/USD rate proposed when creating an operation; 503 when the source is down."
+  },
   "GET /api/v1/modules/": {
     "access": "authenticated",
     "description": "Every session builds its menu from this list."
@@ -455,8 +463,11 @@
     "prefix_match": true
   },
   "GET /api/v1/passengers/search/": {
-    "access": "authenticated",
-    "description": "Scope is applied in the query by the types the caller may view; none readable is a 404."
+    "access": "permission",
+    "permissions": [
+      "passengers.view"
+    ],
+    "description": "Cross-operation people lookup, granted per role. Scope is still applied in the query by the types the caller may view; none readable is a 404."
   },
   "GET /api/v1/reconciliation/": {
     "access": "permission",

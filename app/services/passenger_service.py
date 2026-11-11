@@ -93,5 +93,6 @@ class PassengerService(ProjectService[Ticket]):
         text = clean_query(query[:MAX_PASSENGER_QUERY])
         name_key = fold_text(text)
         if not name_key:
-            return []
+            # No text: the most recent people. Who may see this is the permission's job.
+            return await self.repository.search(None, None)
         return await self.repository.search(name_key, document_query(text))

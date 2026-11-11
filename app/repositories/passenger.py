@@ -81,17 +81,20 @@ class TicketPassengerRepository(TicketRepository):
 
     async def search(
         self,
-        name_key: str,
+        name_key: str | None,
         document_key: str | None,
     ) -> list[PassengerMatch]:
         """Who travelled on which operations. The scope is part of the query: only
         operations of types the caller may read are looked at, and wildcards typed by the
-        user are matched literally."""
-        match = TicketPassenger.name_key.like(f"%{escape_like(name_key)}%", escape=LIKE_ESCAPE)
-        if document_key:
-            match = match | TicketPassenger.document_key.like(
-                f"%{escape_like(document_key)}%", escape=LIKE_ESCAPE
-            )
+        user are matched literally. Without a name the most recent people come back."""
+        filters = []
+        if name_key:
+            match = TicketPassenger.name_key.like(f"%{escape_like(name_key)}%", escape=LIKE_ESCAPE)
+            if document_key:
+                match = match | TicketPassenger.document_key.like(
+                    f"%{escape_like(document_key)}%", escape=LIKE_ESCAPE
+                )
+            filters.append(match)
         scope = [
             self._visible_clause(),
             TicketType.is_root.is_(True),
@@ -103,7 +106,7 @@ class TicketPassengerRepository(TicketRepository):
             )
             .join(Ticket, Ticket.id == TicketPassenger.ticket_id)
             .join(TicketType, TicketType.id == Ticket.type_id)
-            .where(match, *scope)
+            .where(*filters, *scope)
             .group_by(TicketPassenger.document_key)
             .order_by(func.max(Ticket.accounting_date).desc(), TicketPassenger.document_key)
             .limit(MAX_PASSENGER_RESULTS)

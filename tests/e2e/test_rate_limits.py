@@ -126,6 +126,7 @@ def remote_user(new_account, strict):
         _, user, password = await new_account(
             [
                 "tickets.view",
+                "passengers.view",
                 "tickets.create",
                 "tickets.edit",
                 "analytics.view",
@@ -194,7 +195,7 @@ class TestWindow:
         self, live_server, new_account  # noqa: F811
     ):
         make = live_server(**{**STRICT, "RATE_LIMIT_WINDOW_SECONDS": "2"})
-        _, user, password = await new_account(["tickets.view"])
+        _, user, password = await new_account(["tickets.view", "passengers.view"])
         api = make()
         token = (await api.login(user["email"], password)).json()["token"]
         api = api.as_token(token)

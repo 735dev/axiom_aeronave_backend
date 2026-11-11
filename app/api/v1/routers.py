@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     auth,
     catalog,
     closing,
+    exchange_rate,
     module,
     notification,
     passenger,
@@ -41,5 +42,6 @@ for module_router in (
     attachment.router,
     notification.router,
     rule.router,
+    exchange_rate.router,
 ):
     api_router.include_router(module_router)

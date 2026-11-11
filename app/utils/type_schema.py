@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from app.config.catalogs import CATALOG_KEYS
+from app.config.catalogs import CATALOG_KEYS, USER_SOURCE_PATTERN, is_user_source
 from app.config.tickets import (
     KEY_PATTERN,
     MAX_FIELDS,
@@ -75,7 +75,10 @@ def normalize_fields(raw: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
                 raise _fail(f"El campo «{label}» necesita una lista de opciones.", "fields")
         elif options or catalog:
             raise _fail(f"El campo «{label}» no admite opciones ni catálogo.", "fields")
-        if catalog and catalog not in CATALOG_KEYS:
+        if catalog and is_user_source(catalog):
+            if not USER_SOURCE_PATTERN.match(catalog):
+                raise _fail(f"La fuente «{catalog}» no es válida.", "fields")
+        elif catalog and catalog not in CATALOG_KEYS:
             raise _fail(f"El catálogo «{catalog}» no existe.", "fields")
         if options:
             if len(options) > MAX_OPTIONS:
