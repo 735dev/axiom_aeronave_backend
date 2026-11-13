@@ -15,6 +15,8 @@ from app.repositories.ticket_type import TicketTypeRepository
 from app.services.base import ProjectService
 from app.services.permission_service import PermissionService
 from app.utils.type_schema import (
+    bind_fields_to_steps,
+    bind_status_rules,
     normalize_code,
     normalize_fields,
     normalize_statuses,
@@ -87,6 +89,14 @@ class TicketTypeService(ProjectService[TicketType]):
             raise TicketError("validation", "Ya existe un tipo con ese código.", "code")
         await self._check_role(body.get("default_role_id"), "default_role_id")
         definition = await self._definition(body)
+        bind_fields_to_steps(
+            definition.get("fields", []), {step["code"] for step in definition.get("steps", [])}
+        )
+        bind_status_rules(
+            definition.get("statuses", []),
+            {step["code"] for step in definition.get("steps", [])},
+            {field["key"] for field in definition.get("fields", [])},
+        )
         values = {
             "code": code,
             "name": name,
@@ -155,6 +165,37 @@ class TicketTypeService(ProjectService[TicketType]):
             raise TicketError("protected", "Un tipo del sistema no se puede desactivar.")
 
         definition = await self._definition(body)
+        if "fields" in definition or "steps" in definition:
+            field_rows = definition.get("fields")
+            if field_rows is None:
+                field_rows = [
+                    {"key": field.key, "label": field.label, "step_code": field.step_code}
+                    for field in record.fields
+                ]
+            step_codes = (
+                {step["code"] for step in definition["steps"]}
+                if "steps" in definition
+                else {step.code for step in record.steps}
+            )
+            bind_fields_to_steps(field_rows, step_codes)
+        if "statuses" in definition or "steps" in definition or "fields" in definition:
+            status_rows = definition.get("statuses")
+            if status_rows is None:
+                status_rows = [
+                    {"code": status.code, "name": status.name, "advance_rules": status.advance_rules}
+                    for status in record.statuses
+                ]
+            step_codes = (
+                {step["code"] for step in definition["steps"]}
+                if "steps" in definition
+                else {step.code for step in record.steps}
+            )
+            field_keys = (
+                {field["key"] for field in definition["fields"]}
+                if "fields" in definition
+                else {field.key for field in record.fields}
+            )
+            bind_status_rules(status_rows, step_codes, field_keys)
         if "statuses" in definition:
             await self._check_statuses(record, definition["statuses"])
         updated = await super().update(id, scalar) if scalar else record

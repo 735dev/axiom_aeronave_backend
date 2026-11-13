@@ -59,10 +59,13 @@ async def role_ids(admin) -> dict[str, str]:
 
 
 class TestCreationNotices:
-    async def test_new_operation_notifies_only_operations(self, crew):
+    async def test_new_operation_notifies_operations_and_the_pilot(self, crew):
         op = await make_operation(crew["su"])
-        assert await receivers(crew, op) == ["ops"]
-        assert (await about(crew["ops"], op))[0]["kind"] == "operation_created"
+        assert await receivers(crew, op) == ["ops", "pilot"]
+        notice = (await about(crew["pilot"], op))[0]
+        assert notice["kind"] == "operation_created"
+        assert op["code"] in notice["body"]
+        assert "Reporte" not in notice["body"]
 
     async def test_operation_for_another_role_notifies_that_role(self, crew):
         roles = await role_ids(crew["su"])
@@ -168,11 +171,14 @@ class TestOtherEvents:
         tr = await child_of(crew["su"], op, "technical_report", assigned_role_id=roles["pilot"])
         assert await receivers(crew, tr) == ["maint", "pilot"]
 
-    async def test_the_report_opened_by_the_system_is_silent(self, crew):
+    async def test_the_report_opened_by_the_system_is_not_announced(self, crew):
         op = await make_operation(crew["su"])
         r = await crew["su"].get(f"{API}/tickets/?parent_id={op['id']}&type_code=technical_report")
-        for t in r.json()["data"]:
+        reports = r.json()["data"]
+        assert reports
+        for t in reports:
             assert await about(crew["maint"], t) == []
+            assert await about(crew["pilot"], t) == []
 
     async def test_a_read_receipt_notifies_admin_to_validate(self, crew):
         op = await make_operation(crew["su"])

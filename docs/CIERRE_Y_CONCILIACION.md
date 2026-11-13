@@ -1,6 +1,6 @@
 # Cierre firmado, conciliación y totales
 
-Cubre §6.6 (cierre del expediente), §6.18 (conciliación), la bitácora rápida y el filtro `mine`.
+Cubre §6.6 (cierre del expediente), §6.18 (conciliación), el reporte técnico del vuelo y el filtro `mine`.
 Los pasajeros están en `PASAJEROS.md`. Los adjuntos que alimentan todo esto, en `ADJUNTOS.md`.
 
 ## 1. Cierre firmado de una operación

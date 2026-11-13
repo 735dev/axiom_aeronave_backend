@@ -22,7 +22,7 @@ Todos con `notifications.view`.
 
 | Evento | Aviso | Audiencia |
 |---|---|---|
-| Alta de operacion | `operation_created` | rol asignado (y responsable) |
+| Alta de operacion | `operation_created` | rol asignado (y responsable) y el piloto |
 | Alta de hijo con rol/responsable | `ticket_assigned` | ese rol/usuario |
 | Alta de INAC | `navaid_pending` | Operaciones (una vez) |
 | Estado INAC no final | `navaid_pending` ("Falta radioayuda") | Operaciones |
@@ -31,7 +31,7 @@ Todos con `notifications.view`.
 | Comprobante leido | `receipt_validation` | Administracion |
 | Operacion cerrada | `operation_closed` | Operaciones, Administracion, tripulacion, responsable |
 
-El reporte tecnico que el sistema abre solo no avisa. Anular no se anuncia como cierre.
+El reporte tecnico vacio que abre el sistema no se anuncia: no es una novedad. El piloto se entera por el aviso de la operacion. Anular no se anuncia como cierre.
 Deduplicacion: mismo tipo + ticket + texto en 5 minutos = un solo aviso. `close_blocked` se escribe en
 una transaccion propia (el 4xx revierte la de la peticion).
 

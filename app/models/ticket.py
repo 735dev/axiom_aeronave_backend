@@ -124,6 +124,8 @@ class TicketTypeField(IdMixin, Base):
     depends_on: Mapped[str | None] = mapped_column(String(60))
     view_permission: Mapped[str | None] = mapped_column(String(120))
     edit_permission: Mapped[str | None] = mapped_column(String(120))
+    # Paso en el que se responde. Vacío: el campo sigue en el formulario general.
+    step_code: Mapped[str | None] = mapped_column(String(60))
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     __table_args__ = (
@@ -147,6 +149,8 @@ class TicketTypeStatus(IdMixin, Base):
     counts_as_committed: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # Codes this status may move to. NULL means "any other non-final-locked status".
     next_codes: Mapped[list[str] | None] = mapped_column(JSONB)
+    # Conditions that move a ticket here when a step is recorded. NULL: a person chooses it.
+    advance_rules: Mapped[list[dict] | None] = mapped_column(JSONB)
 
     __table_args__ = (UniqueConstraint("type_id", "code", name="uq_ticket_type_status_type_code"),)
 

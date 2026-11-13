@@ -57,6 +57,7 @@ from app.utils import numbering
 from app.utils.aircraft_coherence import AircraftKeys, aircraft_coherence_errors
 from app.utils.money import Money, resolve_money, to_decimal
 from app.utils.quick_log import flight_time_problem
+from app.utils.report_progress import status_for_rules
 from app.utils.review_gate import corrections as reading_corrections
 from app.utils.review_gate import unreviewed_fields
 from app.utils.rules_engine import (
@@ -881,9 +882,50 @@ class TicketService(PeriodLockMixin, ProjectService[Ticket]):
             signature or None,
         )
         await self.repository.record_decision(ticket, step.name, previous, current)
+        await self._sync_progress_status(ticket, ticket_type)
         await self._advance_after_decision(ticket, ticket_type)
         await self._hooks(TicketEvent.DECISION, ticket, step_code=step.code)
         return ticket
+
+    async def _sync_progress_status(self, ticket: Ticket, ticket_type: TicketType) -> None:
+        """Move the ticket when one of its statuses has an advance rule.
+
+        A type without rules is unchanged here. The generic first-decision
+        advance still runs afterwards for a ticket that stayed in its initial status.
+        """
+        if ticket.status.is_final:
+            return
+        code = status_for_rules(
+            [
+                {
+                    "code": status.code,
+                    "sort_order": status.sort_order,
+                    "is_initial": status.is_initial,
+                    "is_final": status.is_final,
+                    "advance_rules": status.advance_rules,
+                }
+                for status in ticket_type.statuses
+            ],
+            ticket.payload,
+            [d.step_code for d in ticket.decisions],
+            [s.code for s in ticket_type.steps if s.required and not s.requires_signature],
+            ticket.status.code,
+        )
+        if code is None or code == ticket.status.code:
+            return
+        target = ticket_type.status_by_code(code)
+        if target is None:
+            return
+        if target.is_final and target.counts_as_committed:
+            await self._check_closing(ticket, ticket_type, target, ticket.rule_hits or [], _money_of(ticket))
+        before_name, before_code = ticket.status.name, ticket.status.code
+        await self.repository.touch(
+            ticket,
+            status_id=target.id,
+            closed_at=datetime.now(timezone.utc) if target.is_final else None,
+        )
+        await self.repository.record_status_change(ticket, before_name, target.name)
+        await self._hooks(TicketEvent.STATUS_CHANGED, ticket, previous_status=before_code)
 
     async def _advance_after_decision(self, ticket: Ticket, ticket_type: TicketType) -> None:
         """The first decision moves a ticket out of its initial status into the first

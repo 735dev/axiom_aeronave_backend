@@ -81,18 +81,6 @@
       "is_active": true
     },
     {
-      "code": "quicklog",
-      "name": "Bitácora de vuelo",
-      "description": "Horarios reales, novedad y fotos del vuelo en pocos toques",
-      "route": "/bitacora-rapida",
-      "icon": "takeoff",
-      "menu_permission": "tickets.create",
-      "show_in_menu": true,
-      "sort_order": 8,
-      "is_system": true,
-      "is_active": true
-    },
-    {
       "code": "passengers",
       "name": "Pasajeros",
       "description": "En qué operaciones viajó una persona",
@@ -272,8 +260,7 @@
         "ticket_types.manage",
         "notifications.view",
         "catalogs.view",
-        "analytics.view",
-        "passengers.view"
+        "analytics.view"
       ]
     },
     {
@@ -554,6 +541,7 @@
     "service_types": [],
     "fbos": [],
     "fuel_suppliers": [],
+    "suppliers": [],
     "operation_scopes": [
       {
         "code": "domestic",
@@ -1311,10 +1299,11 @@
         {
           "key": "supplier",
           "label": "Proveedor",
-          "type": "text",
+          "type": "select",
           "required": false,
           "width": "full",
           "role": "supplier",
+          "catalog": "suppliers",
           "sort_order": 9
         }
       ],
@@ -1373,6 +1362,7 @@
       "fields": [
         {
           "key": "has_finding",
+          "step_code": "report",
           "label": "¿Presentó novedad?",
           "type": "checkbox",
           "required": false,
@@ -1381,6 +1371,7 @@
         },
         {
           "key": "system",
+          "step_code": "report",
           "label": "Sistema afectado",
           "type": "select",
           "required": false,
@@ -1415,6 +1406,7 @@
         },
         {
           "key": "ata_failure_code",
+          "step_code": "report",
           "label": "Código ATA falla",
           "type": "text",
           "required": false,
@@ -1423,6 +1415,7 @@
         },
         {
           "key": "description",
+          "step_code": "report",
           "label": "Descripción de la falla",
           "type": "textarea",
           "required": true,
@@ -1431,6 +1424,7 @@
         },
         {
           "key": "photo",
+          "step_code": "report",
           "label": "Evidencia",
           "type": "file",
           "required": false,
@@ -1439,6 +1433,7 @@
         },
         {
           "key": "corrective_action",
+          "step_code": "diagnosis",
           "label": "Acción correctiva",
           "type": "textarea",
           "required": false,
@@ -1449,6 +1444,7 @@
         },
         {
           "key": "aircraft_status",
+          "step_code": "diagnosis",
           "label": "Estado de la aeronave",
           "type": "select",
           "required": false,
@@ -1458,6 +1454,7 @@
         },
         {
           "key": "requires_workshop",
+          "step_code": "diagnosis",
           "label": "¿Requiere taller externo?",
           "type": "checkbox",
           "required": false,
@@ -1466,6 +1463,7 @@
         },
         {
           "key": "quotes",
+          "step_code": "commercial",
           "label": "Cotizaciones de OMA",
           "type": "textarea",
           "required": false,
@@ -1475,6 +1473,7 @@
         },
         {
           "key": "director_authorization",
+          "step_code": "commercial",
           "label": "Autorización de Gerencia General",
           "type": "textarea",
           "required": false,
@@ -1484,6 +1483,7 @@
         },
         {
           "key": "observations",
+          "step_code": "report",
           "label": "Observaciones",
           "type": "textarea",
           "required": false,
@@ -1492,6 +1492,7 @@
         },
         {
           "key": "actual_departure",
+          "step_code": "report",
           "label": "Salida real",
           "type": "time",
           "required": false,
@@ -1500,6 +1501,7 @@
         },
         {
           "key": "actual_arrival",
+          "step_code": "report",
           "label": "Llegada real",
           "type": "time",
           "required": false,
@@ -1508,6 +1510,7 @@
         },
         {
           "key": "arrival_next_day",
+          "step_code": "report",
           "label": "Llegó al día siguiente",
           "type": "checkbox",
           "required": false,
@@ -1541,7 +1544,21 @@
           "sort_order": 3,
           "is_initial": false,
           "is_final": false,
-          "counts_as_committed": true
+          "counts_as_committed": true,
+          "advance_rules": [
+            {
+              "when": "step",
+              "step_code": "diagnosis",
+              "field_key": "requires_workshop",
+              "equals": true
+            },
+            {
+              "when": "step",
+              "step_code": "diagnosis",
+              "field_key": "aircraft_status",
+              "equals": "grounded"
+            }
+          ]
         },
         {
           "code": "solved",
@@ -1550,7 +1567,12 @@
           "sort_order": 4,
           "is_initial": false,
           "is_final": true,
-          "counts_as_committed": true
+          "counts_as_committed": true,
+          "advance_rules": [
+            {
+              "when": "all_required"
+            }
+          ]
         },
         {
           "code": "no_findings",
@@ -1559,7 +1581,16 @@
           "sort_order": 5,
           "is_initial": false,
           "is_final": true,
-          "counts_as_committed": false
+          "counts_as_committed": false,
+          "advance_rules": [
+            {
+              "when": "step",
+              "step_code": "report",
+              "field_key": "has_finding",
+              "equals": false,
+              "only_this_step": true
+            }
+          ]
         }
       ],
       "steps": [

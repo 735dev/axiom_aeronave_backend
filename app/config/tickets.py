@@ -48,7 +48,7 @@ ROLE_FIELD_TYPES: dict[FieldRole, frozenset[FieldType]] = {
     FieldRole.QUANTITY: frozenset({FieldType.NUMBER, FieldType.INTEGER}),
     FieldRole.EXCHANGE_RATE: frozenset({FieldType.NUMBER}),
     FieldRole.UNIT: frozenset({FieldType.SELECT}),
-    FieldRole.SUPPLIER: frozenset({FieldType.TEXT}),
+    FieldRole.SUPPLIER: frozenset({FieldType.SELECT, FieldType.TEXT}),
 }
 
 

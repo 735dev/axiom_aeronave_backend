@@ -17,7 +17,7 @@ ni las claves: el esquema de entrada solo admite `full_name`, `document`, `natio
 |---|---|---|
 | `GET /tickets/{id}/passengers/` | `tickets.view` (derivado por tipo) | Manifiesto en orden |
 | `PUT` y `POST /tickets/{id}/passengers/` | `tickets.edit` (derivado por tipo) | Reemplaza el manifiesto completo; `POST` es el verbo del simulador |
-| `GET /passengers/search/?q=` | autenticado + alcance en la consulta | Máx. 50 personas |
+| `GET /passengers/search/?q=` | `passengers.view` y alcance en la consulta | Máx. 50 personas. Lo tiene el superusuario. Gerencia de Operaciones no: no ve el módulo ni puede buscar. |
 
 Reglas del reemplazo: solo operaciones raíz (otro tipo = 404); operación cerrada = 409 y evento `denied`; máx. 500
 pasajeros; el mismo documento normalizado dos veces = 422 (el manifiesto previo se conserva); nombre y documento

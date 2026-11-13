@@ -102,6 +102,9 @@ def normalize_fields(raw: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
                     "fields",
                 )
             roles[role.value] = label
+        step_code = str(item.get("step_code") or "").strip() or None
+        if step_code is not None and not KEY_PATTERN.match(step_code):
+            raise _fail(f"El paso del campo «{label}» no es válido.", "fields")
         read_only = bool(item.get("read_only"))
         required = bool(item.get("required"))
         if read_only and required:
@@ -123,6 +126,7 @@ def normalize_fields(raw: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
                 "depends_on": str(item.get("depends_on") or "").strip() or None,
                 "view_permission": item.get("view_permission") or None,
                 "edit_permission": item.get("edit_permission") or None,
+                "step_code": step_code,
                 "sort_order": index,
             }
         )
@@ -144,6 +148,18 @@ def normalize_fields(raw: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     if FieldRole.UNIT.value in roles and FieldRole.QUANTITY.value not in roles:
         raise _fail("Un campo «unidad» necesita un campo «cantidad».", "fields")
     return fields
+
+
+def bind_fields_to_steps(fields: Sequence[Mapping[str, Any]], step_codes: set[str]) -> None:
+    """A field may name the step where it is answered. That step has to exist on the type."""
+    for field in fields:
+        code = field.get("step_code")
+        if code and code not in step_codes:
+            raise _fail(
+                f"El campo «{field.get('label') or field.get('key')}» apunta al paso «{code}», "
+                "que este tipo no tiene.",
+                "fields",
+            )
 
 
 def normalize_statuses(raw: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
@@ -173,6 +189,7 @@ def normalize_statuses(raw: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]
                 "is_final": bool(item.get("is_final")),
                 "counts_as_committed": item.get("counts_as_committed", True) is not False,
                 "next_codes": item.get("next_codes"),
+                "advance_rules": _advance_rules(name, item.get("advance_rules")),
             }
         )
     initial = [s for s in statuses if s["is_initial"]]
@@ -204,6 +221,67 @@ def normalize_statuses(raw: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]
             )
         status["next_codes"] = targets
     return statuses
+
+
+def _advance_rules(status_name: str, raw: Any) -> list[dict[str, Any]] | None:
+    if not raw:
+        return None
+    if not isinstance(raw, list):
+        raise _fail(f"Las condiciones de «{status_name}» no son válidas.", "statuses")
+    if len(raw) > 8:
+        raise _fail(f"«{status_name}» admite como máximo 8 condiciones.", "statuses")
+    rules: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, Mapping):
+            raise _fail(f"Las condiciones de «{status_name}» no son válidas.", "statuses")
+        when = str(item.get("when") or "step")
+        if when not in {"step", "all_required"}:
+            raise _fail(f"La condición de «{status_name}» no es válida.", "statuses")
+        step = str(item.get("step_code") or "").strip() or None
+        field = str(item.get("field_key") or "").strip() or None
+        if when == "step" and (step is None or not KEY_PATTERN.match(step)):
+            raise _fail(f"«{status_name}» necesita el paso que lo alcanza.", "statuses")
+        if field is not None and not KEY_PATTERN.match(field):
+            raise _fail(f"El campo de «{status_name}» no es válido.", "statuses")
+        if when == "step" and field is not None and "equals" not in item:
+            raise _fail(f"«{status_name}» necesita el valor que lo alcanza.", "statuses")
+        equals = item.get("equals")
+        if equals is not None and not isinstance(equals, (bool, str, int, float)):
+            raise _fail(f"El valor de «{status_name}» no es válido.", "statuses")
+        rules.append(
+            {
+                "when": when,
+                "step_code": step,
+                "field_key": field,
+                "equals": equals,
+                "only_this_step": bool(item.get("only_this_step")),
+            }
+        )
+    return rules or None
+
+
+def bind_status_rules(
+    statuses: Sequence[Mapping[str, Any]],
+    step_codes: set[str],
+    field_keys: set[str],
+) -> None:
+    """A status rule may name a step and a field. Both have to exist on the type."""
+    for status in statuses:
+        for rule in status.get("advance_rules") or []:
+            step = rule.get("step_code")
+            if step and step not in step_codes:
+                raise _fail(
+                    f"«{status.get('name') or status.get('code')}» apunta al paso «{step}», "
+                    "que este tipo no tiene.",
+                    "statuses",
+                )
+            field = rule.get("field_key")
+            if field and field not in field_keys:
+                raise _fail(
+                    f"«{status.get('name') or status.get('code')}» apunta al campo «{field}», "
+                    "que este tipo no tiene.",
+                    "statuses",
+                )
 
 
 def normalize_steps(raw: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:

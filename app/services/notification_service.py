@@ -20,6 +20,7 @@ from app.config.notifications import (
     ROLE_ADMIN,
     ROLE_MAINTENANCE,
     ROLE_OPERATIONS,
+    ROLE_PILOT,
     TITLE_MAX,
     TYPE_INAC,
     TYPE_TECHNICAL_REPORT,
@@ -156,6 +157,11 @@ class NotificationService(ProjectService[Notification]):
         roles = [r for r in _unique([ticket.assigned_role_id]) if r not in covered]
         users = _unique([ticket.assigned_user_id])
         if ticket.type.is_root:
+            # The pilot fills the flight log of every operation. That notice is about the
+            # operation, not about the empty technical report the system opens beside it.
+            pilot = await self._role_id(ROLE_PILOT)
+            if pilot is not None and pilot not in covered and pilot not in roles:
+                roles.append(pilot)
             title = "Nueva operación asignada"
             role = ticket.assigned_role_name or NO_ROLE
             body = f"{ticket.code} · {ticket.title} · asignada a {role}"

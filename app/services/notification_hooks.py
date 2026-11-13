@@ -18,7 +18,8 @@ def _notifier(context: TicketContext) -> NotificationService:
 
 
 async def notify_created(context: TicketContext) -> None:
-    # Tickets the system opens itself (the technical report born with an operation) are silent.
+    # The empty technical report opened with an operation is not a finding and must not
+    # be announced as one. The pilot is included in the operation notice instead.
     if context.extra.get("system"):
         return
     await _notifier(context).on_ticket_created(context.ticket)

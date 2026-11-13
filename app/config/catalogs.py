@@ -49,6 +49,11 @@ CATALOG_DEFINITIONS = (
         "Proveedores de combustible",
         "Brokers y proveedores de combustible de las operaciones",
     ),
+    CatalogDefinition(
+        "suppliers",
+        "Proveedores",
+        "Quienes emiten los comprobantes de un gasto",
+    ),
     CatalogDefinition("locations", "Sedes", "Ubicaciones donde opera el personal"),
 )
 CATALOG_KEYS = frozenset(d.key for d in CATALOG_DEFINITIONS)

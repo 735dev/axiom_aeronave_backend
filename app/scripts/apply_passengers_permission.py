@@ -6,8 +6,9 @@ The seed never overwrites what already exists. Run once per database (harmless t
 1. creates the permission `passengers.view` when missing;
 2. points the menu entry `passengers` at it (only while it still uses `tickets.view`:
    a later edit made in the roles screen is respected);
-3. grants it to `operations` and `avsec` (the seed roles that consult people). Any other
-   role gets it from the roles screen, which is the point: the system does not decide.
+3. grants it to `avsec`. Gerencia de Operaciones does not consult people across
+   operations: the script removes `passengers.view` from `operations` when that grant
+   is still there. Any other role gets it from the roles screen.
 """
 
 from __future__ import annotations
@@ -32,7 +33,10 @@ logger = logging.getLogger(__name__)
 PERMISSION = "passengers.view"
 MODULE = "passengers"
 OLD_MENU_PERMISSION = "tickets.view"
-GRANTED_ROLES = ("operations", "avsec")
+GRANTED_ROLES = ("avsec",)
+# Operaciones carga el manifiesto de su operación. La búsqueda entre operaciones
+# es del superusuario (tiene todos los permisos) y de quien se lo asignen en Roles.
+REVOKED_ROLES = ("operations",)
 
 
 async def run_upgrade(session: AsyncSession) -> SeedReport:
@@ -54,6 +58,14 @@ async def run_upgrade(session: AsyncSession) -> SeedReport:
                 continue
             await roles.replace_permissions(role, [*role.permissions, permission])
             report.add("role_grants")
+        for code in REVOKED_ROLES:
+            role = await roles.get_by_code(code)
+            if role is None or not any(p.code == PERMISSION for p in role.permissions):
+                continue
+            await roles.replace_permissions(
+                role, [p for p in role.permissions if p.code != PERMISSION]
+            )
+            report.add("role_revokes")
     if report.total:
         detail = ", ".join(f"{count} {kind}" for kind, count in sorted(report.created.items()))
         await AuditEventRepository(session).append(

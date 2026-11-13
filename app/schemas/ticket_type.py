@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -40,6 +40,15 @@ class FieldBody(RequestModel):
     depends_on: OptionalText = Field(default=None, max_length=60)
     view_permission: OptionalText = Field(default=None, max_length=120)
     edit_permission: OptionalText = Field(default=None, max_length=120)
+    step_code: OptionalText = Field(default=None, max_length=60)
+
+
+class StatusAdvanceRule(RequestModel):
+    when: Literal["step", "all_required"] = "step"
+    step_code: OptionalText = Field(default=None, max_length=60)
+    field_key: OptionalText = Field(default=None, max_length=60)
+    equals: bool | str | int | float | None = None
+    only_this_step: bool = False
 
 
 class StatusBody(RequestModel):
@@ -50,6 +59,7 @@ class StatusBody(RequestModel):
     is_final: bool = False
     counts_as_committed: bool = True
     next_codes: list[str] | None = Field(default=None, max_length=MAX_STATUSES)
+    advance_rules: list[StatusAdvanceRule] | None = None
 
 
 class StepBody(RequestModel):
@@ -106,6 +116,7 @@ class FieldRead(BaseModel):
     depends_on: str | None = None
     view_permission: str | None = None
     edit_permission: str | None = None
+    step_code: str | None = None
     sort_order: int
 
     model_config = ConfigDict(from_attributes=True)
@@ -121,6 +132,7 @@ class StatusRead(BaseModel):
     is_final: bool
     counts_as_committed: bool
     next_codes: list[str] | None = None
+    advance_rules: list[dict] | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

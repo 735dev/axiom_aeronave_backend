@@ -136,7 +136,7 @@ class TestManifest:
         ).status_code == 422
         assert (await ops.request("PUT", ticket_url(op, "passengers/"), json={})).status_code == 422
 
-    async def test_internal_fields_cannot_be_set_by_the_client(self, ops):
+    async def test_internal_fields_cannot_be_set_by_the_client(self, ops, admin):
         op = await make_operation(ops)
         r = await put(
             ops,
@@ -154,8 +154,8 @@ class TestManifest:
         )
         assert r.status_code == 200
         assert r.json()[0]["id"] != ZERO
-        assert len(await found(ops, "V12345678")) >= 1
-        assert await found(ops, "zzz") == []
+        assert len(await found(admin, "V12345678")) >= 1
+        assert await found(admin, "zzz") == []
 
     async def test_unknown_operation_is_404(self, ops):
         assert (await ops.get(ticket_url(ZERO, "passengers/"))).status_code == 404
@@ -227,100 +227,103 @@ class TestManifestPermissions:
 
 
 class TestSearch:
-    async def test_the_document_format_does_not_matter_in_either_direction(self, ops):
+    async def test_the_document_format_does_not_matter_in_either_direction(self, admin):
         number = f"{uuid.uuid4().int % 10**8:08d}"
-        a, b = await make_operation(ops), await make_operation(ops)
-        await put(ops, a, [person("Pax A", f"V{number}")])
-        await put(ops, b, [person("Pax A", f"v-{number[:2]}.{number[2:5]}.{number[5:]}")])
+        a, b = await make_operation(admin), await make_operation(admin)
+        await put(admin, a, [person("Pax A", f"V{number}")])
+        await put(admin, b, [person("Pax A", f"v-{number[:2]}.{number[2:5]}.{number[5:]}")])
         for query in (f"V-{number}", f"v {number}", f"V{number}", number):
-            hits = await found(ops, query)
+            hits = await found(admin, query)
             assert len(hits) == 1, query
             assert sorted(o["id"] for o in hits[0]["operations"]) == sorted([a["id"], b["id"]])
 
-    async def test_the_name_is_searched_without_accents_or_case(self, ops):
+    async def test_the_name_is_searched_without_accents_or_case(self, admin):
         t = tag()
-        op = await make_operation(ops)
-        await put(ops, op, [person(f"María José {t}")])
-        assert len(await found(ops, f"maria jose {t}")) == 1
-        assert len(await found(ops, f"MARÍA JOSÉ {t.upper()}")) == 1
-        assert len(await found(ops, t)) == 1
+        op = await make_operation(admin)
+        await put(admin, op, [person(f"María José {t}")])
+        assert len(await found(admin, f"maria jose {t}")) == 1
+        assert len(await found(admin, f"MARÍA JOSÉ {t.upper()}")) == 1
+        assert len(await found(admin, t)) == 1
 
-    async def test_the_query_may_carry_accents_the_record_lacks(self, ops):
+    async def test_the_query_may_carry_accents_the_record_lacks(self, admin):
         t = tag()
-        await put(ops, await make_operation(ops), [person(f"Jose Peña {t}")])
-        assert len(await found(ops, f"JOSÉ PEÑA {t}")) == 1
+        await put(admin, await make_operation(admin), [person(f"Jose Peña {t}")])
+        assert len(await found(admin, f"JOSÉ PEÑA {t}")) == 1
 
-    async def test_each_hit_carries_code_date_route_and_status(self, ops):
+    async def test_each_hit_carries_code_date_route_and_status(self, admin):
         t = tag()
-        op = await make_operation(ops)
-        await put(ops, op, [person(f"Viajero {t}")])
-        [hit] = (await found(ops, t))[0]["operations"]
+        op = await make_operation(admin)
+        await put(admin, op, [person(f"Viajero {t}")])
+        [hit] = (await found(admin, t))[0]["operations"]
         assert hit["id"] == op["id"] and hit["code"] == op["code"]
         assert hit["status_code"] == op["status_code"] and hit["status_name"]
         assert hit["date"] == "2026-08-19" and hit["route"] == "CCS → PZO"
         assert hit["status_is_final"] is False
 
-    async def test_no_match_is_an_empty_list_not_an_error(self, ops):
-        r = await search(ops, "zzzz-inexistente-" + tag())
+    async def test_no_match_is_an_empty_list_not_an_error(self, admin):
+        r = await search(admin, "zzzz-inexistente-" + tag())
         assert r.status_code == 200 and r.json() == {"data": []}
 
-    async def test_blank_or_missing_query_lists_the_most_recent_people(self, ops):
+    async def test_blank_or_missing_query_lists_the_most_recent_people(self, admin):
         t = tag()
-        await put(ops, await make_operation(ops, date="2099-01-01"), [person(f"Reciente {t}")])
+        await put(admin, await make_operation(admin, date="2099-01-01"), [person(f"Reciente {t}")])
         for q in ("", "   "):
-            hits = await found(ops, q)
+            hits = await found(admin, q)
             assert len(hits) <= 50 and f"Reciente {t}" in [h["full_name"] for h in hits]
-        r = await ops.get(f"{API}/passengers/search/")
+        r = await admin.get(f"{API}/passengers/search/")
         assert r.status_code == 200 and len(r.json()["data"]) <= 50
 
-    async def test_a_short_name_does_not_leak_documents_that_contain_the_letters(self, ops):
-        await put(ops, await make_operation(ops), [person("Otro Nombre", "ANA123456")])
-        assert all("ANA123456" != h["document"] for h in await found(ops, "ana"))
+    async def test_a_short_name_does_not_leak_documents_that_contain_the_letters(self, admin):
+        await put(admin, await make_operation(admin), [person("Otro Nombre", "ANA123456")])
+        assert all("ANA123456" != h["document"] for h in await found(admin, "ana"))
 
-    async def test_two_different_people_stay_apart(self, ops):
+    async def test_two_different_people_stay_apart(self, admin):
         t = tag()
-        await put(ops, await make_operation(ops), [person(f"Rodríguez {t}"), person(f"Pérez {t}")])
-        hits = await found(ops, f"rodriguez {t}")
+        await put(admin, await make_operation(admin), [person(f"Rodríguez {t}"), person(f"Pérez {t}")])
+        hits = await found(admin, f"rodriguez {t}")
         assert len(hits) == 1 and hits[0]["full_name"].startswith("Rodríguez")
 
-    async def test_the_same_person_on_many_operations_is_one_result(self, ops):
+    async def test_the_same_person_on_many_operations_is_one_result(self, admin):
         number = f"{uuid.uuid4().int % 10**8:08d}"
         for _ in range(3):
-            await put(ops, await make_operation(ops), [person("Viajero Frecuente", f"V{number}")])
-        hits = await found(ops, number)
+            await put(admin, await make_operation(admin), [person("Viajero Frecuente", f"V{number}")])
+        hits = await found(admin, number)
         assert len(hits) == 1 and len(hits[0]["operations"]) == 3
 
-    async def test_most_recent_operation_first(self, ops):
+    async def test_most_recent_operation_first(self, admin):
         number = f"{uuid.uuid4().int % 10**8:08d}"
-        old = await make_operation(ops, date="2026-01-05")
-        new = await make_operation(ops, date="2026-06-05")
-        await put(ops, old, [person("Pax", f"V{number}")])
-        await put(ops, new, [person("Pax", f"V{number}")])
-        dates = [o["date"] for o in (await found(ops, number))[0]["operations"]]
+        old = await make_operation(admin, date="2026-01-05")
+        new = await make_operation(admin, date="2026-06-05")
+        await put(admin, old, [person("Pax", f"V{number}")])
+        await put(admin, new, [person("Pax", f"V{number}")])
+        dates = [o["date"] for o in (await found(admin, number))[0]["operations"]]
         assert dates == sorted(dates, reverse=True)
 
-    async def test_results_are_capped_at_50_people(self, ops):
+    async def test_results_are_capped_at_50_people(self, admin):
         t = tag()
-        op = await make_operation(ops)
-        await put(ops, op, [person(f"Zeta {t} {i}", f"V{i + 1:09d}") for i in range(60)])
-        assert len(await found(ops, f"zeta {t}")) == 50
+        op = await make_operation(admin)
+        await put(admin, op, [person(f"Zeta {t} {i}", f"V{i + 1:09d}") for i in range(60)])
+        assert len(await found(admin, f"zeta {t}")) == 50
 
-    async def test_a_query_over_100_characters_is_422(self, ops):
-        assert (await search(ops, "a" * 101)).status_code == 422
+    async def test_a_query_over_100_characters_is_422(self, admin):
+        assert (await search(admin, "a" * 101)).status_code == 422
 
-    async def test_removed_passengers_disappear_from_the_search(self, ops):
+    async def test_removed_passengers_disappear_from_the_search(self, admin):
         t = tag()
-        op = await make_operation(ops)
-        await put(ops, op, [person(f"Fugaz {t}")])
-        await put(ops, op, [])
-        assert await found(ops, f"fugaz {t}") == []
+        op = await make_operation(admin)
+        await put(admin, op, [person(f"Fugaz {t}")])
+        await put(admin, op, [])
+        assert await found(admin, f"fugaz {t}") == []
 
     async def test_anonymous_gets_401(self, anon):
         assert (await anon.get(f"{API}/passengers/search/?q=maria")).status_code == 401
 
 
 class TestWhoMaySearch:
-    """Looking people up across operations is granted per role, never decided by the system."""
+    """Looking people up across operations is granted per role. Operaciones does not have it."""
+
+    async def test_operaciones_cannot_search_across_operations(self, ops):
+        assert (await search(ops, "maria")).status_code == 403
 
     async def test_reading_tickets_is_not_enough_to_search_people(self, new_account):
         api, _, _ = await new_account(["tickets.view"])
@@ -343,46 +346,46 @@ class TestWhoMaySearch:
 
 
 class TestWildcardAndInjectionAbuse:
-    async def test_percent_and_underscore_are_literal_not_wildcards(self, ops):
-        await put(ops, await make_operation(ops), [person("Maria Pax", "V99887766")])
+    async def test_percent_and_underscore_are_literal_not_wildcards(self, admin):
+        await put(admin, await make_operation(admin), [person("Maria Pax", "V99887766")])
         for q in ("%", "%%%", "_", "____", "%_%", "m%a", "_aria"):
-            assert await found(ops, q) == [], q
+            assert await found(admin, q) == [], q
 
-    async def test_a_literal_percent_in_a_name_is_found_as_is(self, ops):
+    async def test_a_literal_percent_in_a_name_is_found_as_is(self, admin):
         t = tag()
-        await put(ops, await make_operation(ops), [person(f"Cien% Real {t}")])
-        assert len(await found(ops, f"cien% real {t}")) == 1
-        assert await found(ops, f"cien_ real {t}") == []
+        await put(admin, await make_operation(admin), [person(f"Cien% Real {t}")])
+        assert len(await found(admin, f"cien% real {t}")) == 1
+        assert await found(admin, f"cien_ real {t}") == []
 
-    async def test_regex_syntax_is_text_never_a_pattern(self, ops):
-        await put(ops, await make_operation(ops), [person("aaaaaaaaaaaaaaaaaaaaaaaaaaaa!")])
+    async def test_regex_syntax_is_text_never_a_pattern(self, admin):
+        await put(admin, await make_operation(admin), [person("aaaaaaaaaaaaaaaaaaaaaaaaaaaa!")])
         for q in (".*(", "(a+)+$", "[", "\\", "$where", "(?<=", ".*", ".*.*.*.*.*x", "|", "^"):
-            r = await search(ops, q)
+            r = await search(admin, q)
             assert r.status_code == 200, q
             assert r.json()["data"] == [], q
 
-    async def test_sql_metacharacters_are_inert(self, ops):
+    async def test_sql_metacharacters_are_inert(self, admin):
         t = tag()
-        await put(ops, await make_operation(ops), [person(f"Real {t}")])
+        await put(admin, await make_operation(admin), [person(f"Real {t}")])
         for q in ("' OR '1'='1", "'; DROP TABLE ticket_passenger;--", '" OR 1=1 --', "\\' OR 1=1"):
-            r = await search(ops, q)
+            r = await search(admin, q)
             assert r.status_code == 200 and r.json()["data"] == [], q
-        assert len(await found(ops, f"real {t}")) == 1
+        assert len(await found(admin, f"real {t}")) == 1
 
-    async def test_null_bytes_and_control_chars_do_not_500(self, ops):
+    async def test_null_bytes_and_control_chars_do_not_500(self, admin):
         for q in ("a\x00b", "\x01\x02", "‮"):
-            r = await ops.get(f"{API}/passengers/search/", params={"q": q})
+            r = await admin.get(f"{API}/passengers/search/", params={"q": q})
             assert r.status_code in (200, 422), q
 
-    async def test_a_wildcard_document_cannot_enumerate_passports(self, ops):
-        await put(ops, await make_operation(ops), [person("Doc", "V5551234")])
-        assert await found(ops, "V%") == []
-        assert await found(ops, "%1234") == []
+    async def test_a_wildcard_document_cannot_enumerate_passports(self, admin):
+        await put(admin, await make_operation(admin), [person("Doc", "V5551234")])
+        assert await found(admin, "V%") == []
+        assert await found(admin, "%1234") == []
 
-    async def test_the_response_never_contains_the_table_internals(self, ops):
+    async def test_the_response_never_contains_the_table_internals(self, admin):
         t = tag()
-        await put(ops, await make_operation(ops), [person(f"Interno {t}")])
-        text = (await search(ops, t)).text
+        await put(admin, await make_operation(admin), [person(f"Interno {t}")])
+        text = (await search(admin, t)).text
         assert (
             "name_key" not in text
             and "document_key" not in text
@@ -517,18 +520,18 @@ class TestPassport:
         assert r.status_code == 200 and r.json()[0]["passport_file_id"] == file["id"]
         assert (await manifest(ops, op))[0]["passport_file_id"] == file["id"]
 
-    async def test_the_search_result_carries_the_passport_reference(self, ops):
+    async def test_the_search_result_carries_the_passport_reference(self, ops, admin):
         number = f"{uuid.uuid4().int % 10**8:08d}"
         op = await make_operation(ops)
         file = await self._passport(ops, op)
         await put(ops, op, [person("Con pasaporte", f"V{number}", passport_file_id=file["id"])])
-        hit = (await found(ops, number))[0]
+        hit = (await found(admin, number))[0]
         assert hit["passport"] == {"ticket_id": op["id"], "file_id": file["id"]}
 
-    async def test_no_passport_means_null(self, ops):
+    async def test_no_passport_means_null(self, ops, admin):
         number = f"{uuid.uuid4().int % 10**8:08d}"
         await put(ops, await make_operation(ops), [person("Sin pasaporte", f"V{number}")])
-        assert (await found(ops, number))[0]["passport"] is None
+        assert (await found(admin, number))[0]["passport"] is None
 
     async def test_only_a_reference_is_stored_never_the_image(self, ops):
         op = await make_operation(ops)
@@ -565,10 +568,10 @@ class TestPassport:
         link = await ops.get(ticket_url(op, f"attachments/{file['id']}/download/"))
         assert link.status_code == 200 and link.json()["url"]
 
-    async def test_a_foreign_passport_never_leaks_through_the_search(self, ops):
+    async def test_a_foreign_passport_never_leaks_through_the_search(self, ops, admin):
         number = f"{uuid.uuid4().int % 10**8:08d}"
         mine, theirs = await make_operation(ops), await make_operation(ops)
         foreign = await self._passport(ops, theirs)
         await put(ops, mine, [person("Intruso", f"V{number}", passport_file_id=foreign["id"])])
-        hits = await found(ops, number)
+        hits = await found(admin, number)
         assert hits == [] or hits[0]["passport"] is None

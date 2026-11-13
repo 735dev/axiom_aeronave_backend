@@ -50,6 +50,7 @@ FIELD_COLUMNS = (
     "depends_on",
     "view_permission",
     "edit_permission",
+    "step_code",
 )
 #: The attributes this upgrade owns on the three aircraft fields.
 MANAGED = {
