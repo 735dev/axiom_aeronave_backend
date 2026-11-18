@@ -89,7 +89,12 @@ def get_user_service(request: Request, db: AsyncSession = Depends(get_db)) -> Us
 
 
 def get_catalog_service(request: Request, db: AsyncSession = Depends(get_db)) -> CatalogService:
-    return CatalogService(CatalogItemRepository(db), request=request)
+    return CatalogService(
+        CatalogItemRepository(db),
+        request=request,
+        notifications=NotificationRepository(db),
+        roles=RoleRepository(db),
+    )
 
 
 def get_audit_service(request: Request, db: AsyncSession = Depends(get_db)) -> AuditService:

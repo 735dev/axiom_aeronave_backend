@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi_restful.cbv import cbv
 
 from app.api.base import ContractController
-from app.schemas.totals import TotalsRead
+from app.schemas.totals import ActivityRead, TotalsRead
 from app.services.dependency import get_ticket_totals_service
 from app.services.ticket_totals_service import TicketTotalsService
 
@@ -36,4 +36,19 @@ class TicketTotalsController(ContractController):
         params = self._params()
         return self.format_response(
             await self.service.totals(params["filters"], params.get("search"))
+        )
+
+    @router.get("/activity/", response_model=ActivityRead, summary="Operation and work counts")
+    async def activity(
+        self,
+        scope: str | None = Query(default=None, max_length=20),
+        aircraft: str | None = Query(default=None, max_length=20),
+        from_: str | None = Query(default=None, alias="from", max_length=10),
+        to: str | None = Query(default=None, max_length=10),
+    ):
+        params = self._params()
+        return self.format_response(
+            ActivityRead.model_validate(
+                await self.service.activity(params["filters"], params.get("search"))
+            )
         )

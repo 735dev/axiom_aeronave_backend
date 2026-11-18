@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 from fastapi_basekit.exceptions.api_exceptions import NotFoundException
 
 from app.config.settings import get_settings
+from app.integrations.exchange_rate import ExchangeRateUnavailable, get_exchange_rate
 from app.config.closing import ARRIVAL_KEY
 from app.config.tickets import (
     AUTO_REPORT_PAYLOAD,
@@ -55,7 +56,9 @@ from app.services.period_lock import PeriodLockMixin
 from app.services.ticket_hooks import CLOSE_CHECKS, TICKET_HOOKS, TicketContext, TicketEvent
 from app.utils import numbering
 from app.utils.aircraft_coherence import AircraftKeys, aircraft_coherence_errors
-from app.utils.money import Money, resolve_money, to_decimal
+from app.utils.aircraft_link import align_aircraft_link
+from app.utils.money import Money, eur_per_usd, resolve_money, to_decimal
+from app.utils.operation_scope import route_points, scope_for
 from app.utils.quick_log import flight_time_problem
 from app.utils.report_progress import status_for_rules
 from app.utils.review_gate import corrections as reading_corrections
@@ -281,6 +284,19 @@ class TicketService(PeriodLockMixin, ProjectService[Ticket]):
         creating: bool,
         held: frozenset[str],
     ) -> PayloadResult:
+        # Derived fields are stamped after validation. A client that echoes them
+        # must not be rejected for writing a read-only field.
+        derived = {
+            item.key
+            for item in ticket_type.fields
+            if item.read_only
+            and (
+                item.key == "scope"
+                or item.role in {FieldRole.AIRCRAFT_BRAND.value, FieldRole.AIRCRAFT_MODEL.value}
+            )
+        }
+        if derived:
+            incoming = {key: value for key, value in incoming.items() if key not in derived}
         catalogs = await self._catalogs_for(ticket_type, incoming.keys())
         result = validate_payload(
             ticket_type.fields,
@@ -291,14 +307,58 @@ class TicketService(PeriodLockMixin, ProjectService[Ticket]):
             catalogs=catalogs,
         )
         if not result.errors and not result.forbidden:
-            result.errors.update(await self._aircraft_errors(ticket_type, result))
+            link = await self._stamp_aircraft_link(ticket_type, result.payload)
+            if link is not None:
+                result.errors[link[0]] = link[1]
+            else:
+                result.errors.update(await self._aircraft_errors(ticket_type, result))
         self._payload_failure(result, ticket_type)
+        await self._stamp_scope(ticket_type, result.payload)
         problem = flight_time_problem(result.payload)
         if problem:
             raise TicketError("validation", problem, field=ARRIVAL_KEY)
         return result
 
     # ------------------------------------------------------------------ derived values
+
+    async def _stamp_aircraft_link(
+        self, ticket_type: TicketType, payload: dict[str, Any]
+    ) -> tuple[str, str] | None:
+        """Brand and model follow the tail. The regime follows the sheet."""
+        brand = ticket_type.field_by_role(FieldRole.AIRCRAFT_BRAND.value)
+        model = ticket_type.field_by_role(FieldRole.AIRCRAFT_MODEL.value)
+        aircraft = ticket_type.field_by_role(FieldRole.AIRCRAFT.value)
+        if aircraft is None or not aircraft.catalog:
+            return None
+        regime = next(
+            (item for item in ticket_type.fields if item.catalog == "flight_regimes"), None
+        )
+        return align_aircraft_link(
+            payload,
+            aircraft_key=aircraft.key,
+            brand_key=brand.key if brand else None,
+            model_key=model.key if model else None,
+            regime_key=regime.key if regime else None,
+            fleet=await self.catalog.active_extras(aircraft.catalog),
+            models=(
+                await self.catalog.active_extras(model.catalog) if model and model.catalog else {}
+            ),
+            sheets=await self.catalog.active_extras("aircraft_sheets"),
+        )
+
+    async def _stamp_scope(self, ticket_type: TicketType, payload: dict[str, Any]) -> None:
+        """Read-only scope: international as soon as one point is an international airport."""
+        field = next((item for item in ticket_type.fields if item.key == "scope"), None)
+        if field is None or not field.read_only:
+            return
+        extras = await self.catalog.active_extras(AIRPORTS_CATALOG)
+        payload["scope"] = scope_for(route_points(payload), extras)
+
+    async def _official_quote(self, currency: str):
+        try:
+            return await get_exchange_rate(get_settings(), currency)
+        except ExchangeRateUnavailable:
+            return None
 
     async def _value_money(
         self,
@@ -313,17 +373,64 @@ class TicketService(PeriodLockMixin, ProjectService[Ticket]):
         currency_field = ticket_type.field_by_role(FieldRole.CURRENCY.value)
         currency = payload.get(currency_field.key) if currency_field else None
         name = await self.catalog.name_of(CURRENCY_CATALOG, currency) if currency else None
+        code = (str(currency).strip().upper() if currency else "") or "USD"
+        raw_amount = payload.get(amount_field.key)
+        blank = raw_amount is None or (isinstance(raw_amount, str) and not raw_amount.strip())
+        manual = payload.get(EXCHANGE_RATE_KEY)
+        parent_rate = (parent.payload or {}).get(EXCHANGE_RATE_KEY) if parent else None
+        if not blank and previous is not None and previous.currency != code:
+            # The number frozen on the payload belonged to the previous currency.
+            payload.pop(EXCHANGE_RATE_KEY, None)
+            manual = None
+        if not blank and code == "EUR":
+            manual = await self._eur_rate(payload, manual, amount_field.key)
+            parent_rate = None
+        elif not blank and code == "VES":
+            manual = await self._ves_rate(payload, manual, parent_rate)
         result = resolve_money(
-            amount_value=payload.get(amount_field.key),
+            amount_value=raw_amount,
             currency=currency,
             currency_name=name,
-            manual_rate=payload.get(EXCHANGE_RATE_KEY),
-            parent_rate=(parent.payload or {}).get(EXCHANGE_RATE_KEY) if parent else None,
+            manual_rate=manual,
+            parent_rate=parent_rate,
             previous=previous,
         )
         if result.error:
             raise TicketError("validation", result.error, field=amount_field.key)
         return result.money
+
+    async def _ves_rate(self, payload: dict[str, Any], manual: Any, parent_rate: Any) -> Any:
+        """Bs per USD: the expense, else the parent operation, else the official quote.
+
+        The quote is written on the expense so the next save freezes it. A parent rate
+        already stored on an old operation is left where it is.
+        """
+        own = to_decimal(manual)
+        inherited = to_decimal(parent_rate)
+        if (own is not None and own > 0) or (inherited is not None and inherited > 0):
+            return manual
+        quote = await self._official_quote("USD")
+        if quote is None:
+            return manual
+        payload[EXCHANGE_RATE_KEY] = quote.rate
+        return quote.rate
+
+    async def _eur_rate(self, payload: dict[str, Any], manual: Any, amount_key: str) -> Any:
+        """Euros per one dollar. A failed official read is refused; nothing is invented."""
+        frozen = to_decimal(manual)
+        if frozen is not None and frozen > 0:
+            return manual
+        usd = await self._official_quote("USD")
+        eur = await self._official_quote("EUR")
+        if usd is None or eur is None:
+            raise TicketError(
+                "validation",
+                "No hay tasa oficial en euros. No se inventa una tasa.",
+                field=amount_key,
+            )
+        per_base = eur_per_usd(Decimal(str(usd.rate)), Decimal(str(eur.rate)))
+        payload[EXCHANGE_RATE_KEY] = float(per_base)
+        return per_base
 
     @staticmethod
     def _accounting_date(ticket_type: TicketType, payload: dict[str, Any], fallback: date) -> date:
@@ -464,6 +571,7 @@ class TicketService(PeriodLockMixin, ProjectService[Ticket]):
             attachments=attachments,
             concept=str(payload.get(item.key)) if item and payload.get(item.key) else None,
             route=route,
+            payload=payload,
         )
         return merge_hits(previous_hits, evaluate(rules, facts))
 
@@ -917,7 +1025,9 @@ class TicketService(PeriodLockMixin, ProjectService[Ticket]):
         if target is None:
             return
         if target.is_final and target.counts_as_committed:
-            await self._check_closing(ticket, ticket_type, target, ticket.rule_hits or [], _money_of(ticket))
+            await self._check_closing(
+                ticket, ticket_type, target, ticket.rule_hits or [], _money_of(ticket)
+            )
         before_name, before_code = ticket.status.name, ticket.status.code
         await self.repository.touch(
             ticket,

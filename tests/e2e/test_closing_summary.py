@@ -38,9 +38,9 @@ class TestScope:
     async def test_not_a_uuid_is_422_or_404(self, ops):
         assert (await ops.get(f"{API}/tickets/nope/closing/")).status_code in (404, 422)
 
-    async def test_a_child_ticket_is_404(self, ops):
+    async def test_a_child_ticket_is_404(self, ops, pilot):
         op = await make_operation(ops)
-        expense = await make_expense(ops, op)
+        expense = await make_expense(pilot, op)
         assert (await ops.get(closing_url(expense))).status_code == 404
 
     async def test_operation_answers_200_with_its_code(self, ops):
@@ -115,19 +115,19 @@ class TestProgressByRole:
 
 
 class TestExpensesAndTotals:
-    async def test_totals_equal_the_totals_endpoint_for_the_operation(self, ops):
-        op = await make_operation(ops, exchange_rate=50)
-        await make_expense(ops, op, amount=100, currency="USD")
-        await make_expense(ops, op, amount=5000, currency="VES")
+    async def test_totals_equal_the_totals_endpoint_for_the_operation(self, ops, pilot):
+        op = await make_operation(ops)
+        await make_expense(pilot, op, amount=100, currency="USD")
+        await make_expense(pilot, op, amount=5000, currency="VES")
         mine = (await closing(ops, op))["totals"]
         other = await totals(ops, parent_id=op["id"])
         assert mine == other
         assert sorted(c["currency"] for c in mine["by_currency"]) == ["USD", "VES"]
 
-    async def test_every_expense_is_listed_with_support_flag_and_base(self, ops):
+    async def test_every_expense_is_listed_with_support_flag_and_base(self, ops, pilot):
         op = await make_operation(ops)
-        a = await with_support(ops, op, amount=100)
-        b = await make_expense(ops, op, amount=40)
+        a = await with_support(pilot, op, amount=100)
+        b = await make_expense(pilot, op, amount=40)
         rows = (await closing(ops, op))["expenses"]
         assert len(rows) == 2
         ra = next(r for r in rows if r["code"] == a["code"])
@@ -136,15 +136,15 @@ class TestExpensesAndTotals:
         assert ra["amount"] == 100 and ra["currency"] == "USD" and ra["concept"]
         assert ra["amount_base"] == a["money"]["amount_base"]
 
-    async def test_concept_is_the_catalog_label_not_the_code(self, ops):
+    async def test_concept_is_the_catalog_label_not_the_code(self, ops, pilot):
         op = await make_operation(ops)
-        await make_expense(ops, op, concept="fuel")
+        await make_expense(pilot, op, concept="fuel")
         assert (await closing(ops, op))["expenses"][0]["concept"] == "Combustible"
 
-    async def test_confirmed_and_in_progress_are_separated(self, ops):
+    async def test_confirmed_and_in_progress_are_separated(self, ops, pilot):
         op = await make_operation(ops)
-        a = await make_expense(ops, op, amount=100)
-        b = await make_expense(ops, op, amount=30)
+        a = await make_expense(pilot, op, amount=100)
+        b = await make_expense(pilot, op, amount=30)
         assert (await patch(ops, a, status_code="verified")).status_code == 200
         body = await closing(ops, op)
         assert body["confirmed"]["base"] == a["money"]["amount_base"]
@@ -152,19 +152,19 @@ class TestExpensesAndTotals:
         assert body["confirmed"]["by_currency"][0]["amount"] == 100
         assert body["in_progress"]["by_currency"][0]["amount"] == 30
 
-    async def test_a_rejected_expense_counts_for_neither(self, ops):
+    async def test_a_rejected_expense_counts_for_neither(self, ops, pilot):
         op = await make_operation(ops)
-        a = await make_expense(ops, op, amount=100)
+        a = await make_expense(pilot, op, amount=100)
         assert (await patch(ops, a, status_code="rejected")).status_code == 200
         body = await closing(ops, op)
         assert body["confirmed"]["base"] + body["in_progress"]["base"] == 0
         assert body["expenses"][0]["counts"] is False
         assert body["totals"]["excluded_base"] > 0
 
-    async def test_other_operations_expenses_do_not_leak_in(self, ops):
+    async def test_other_operations_expenses_do_not_leak_in(self, ops, pilot):
         a = await make_operation(ops)
         b = await make_operation(ops)
-        await make_expense(ops, b, amount=777)
+        await make_expense(pilot, b, amount=777)
         assert (await closing(ops, a))["expenses"] == []
 
     async def test_an_empty_operation_has_zero_money(self, ops):
@@ -173,41 +173,41 @@ class TestExpensesAndTotals:
 
 
 class TestSupportInventory:
-    async def test_files_of_the_operation_and_its_children_are_consolidated(self, ops):
+    async def test_files_of_the_operation_and_its_children_are_consolidated(self, ops, pilot):
         op = await make_operation(ops)
-        expense = await make_expense(ops, op)
+        expense = await make_expense(pilot, op)
         await attach(ops, op, "manifiesto.pdf", field_key="manifest")
         await attach(ops, expense, "factura.pdf")
         inventory = (await closing(ops, op))["supports"]
         assert sorted(i["ticket_code"] for i in inventory) == sorted([op["code"], expense["code"]])
         assert all(i["filename"] and i["folder"] and i["uploaded_by"] for i in inventory)
 
-    async def test_counts_by_document_type(self, ops):
+    async def test_counts_by_document_type(self, ops, pilot):
         op = await make_operation(ops)
-        e1, e2 = await make_expense(ops, op), await make_expense(ops, op)
+        e1, e2 = await make_expense(pilot, op), await make_expense(pilot, op)
         await attach(ops, e1, "a.pdf")
         await attach(ops, e2, "b.pdf")
         await attach(ops, op, "m.pdf", field_key="manifest")
         by = {x["document_type"]: x["count"] for x in (await closing(ops, op))["supports_by_type"]}
         assert by["comprobante"] == 2 and by["manifiesto"] == 1
 
-    async def test_files_of_another_operation_are_not_mixed(self, ops):
+    async def test_files_of_another_operation_are_not_mixed(self, ops, pilot):
         a, b = await make_operation(ops), await make_operation(ops)
-        await attach(ops, await make_expense(ops, b), "x.pdf")
+        await attach(ops, await make_expense(pilot, b), "x.pdf")
         assert (await closing(ops, a))["supports"] == []
 
-    async def test_a_removed_file_leaves_the_inventory(self, ops):
+    async def test_a_removed_file_leaves_the_inventory(self, ops, pilot):
         op = await make_operation(ops)
-        expense = await make_expense(ops, op)
+        expense = await make_expense(pilot, op)
         await attach(ops, expense, "x.pdf")
         file = (await files_of(ops, expense))[0]
         r = await ops.delete(f"{API}/tickets/{expense['id']}/attachments/{file['id']}/")
         assert r.status_code == 200, r.text
         assert (await closing(ops, op))["supports"] == []
 
-    async def test_inventory_never_carries_download_links_or_bytes(self, ops):
+    async def test_inventory_never_carries_download_links_or_bytes(self, ops, pilot):
         op = await make_operation(ops)
-        await attach(ops, await make_expense(ops, op), "x.pdf")
+        await attach(ops, await make_expense(pilot, op), "x.pdf")
         text = (await ops.get(closing_url(op))).text
         assert "data:" not in text and "http" not in text
 
@@ -226,9 +226,9 @@ class TestBlockers:
         )
         assert body["ready"] is False
 
-    async def test_an_expense_without_support_blocks_and_points_at_it(self, ops):
+    async def test_an_expense_without_support_blocks_and_points_at_it(self, ops, pilot):
         op = await ready_operation(ops)
-        expense = await make_expense(ops, op)
+        expense = await make_expense(pilot, op)
         body = await closing(ops, op)
         assert any(
             b["kind"] == "expense_without_support" and b["ticket_id"] == expense["id"]
@@ -236,19 +236,19 @@ class TestBlockers:
         )
         assert body["ready"] is False
 
-    async def test_a_read_but_unvalidated_receipt_blocks(self, ops):
+    async def test_a_read_but_unvalidated_receipt_blocks(self, ops, pilot):
         from tests.e2e.attachments_support import readable_png
 
         op = await ready_operation(ops)
-        expense = await make_expense(ops, op)
+        expense = await make_expense(pilot, op)
         await attach(ops, expense, "recibo.png", content=readable_png())
         body = await closing(ops, op)
         assert any(b["kind"] == "receipt_awaiting_validation" for b in body["blockers"])
         assert body["ready"] is False
 
-    async def test_only_the_signature_left_means_ready(self, ops):
+    async def test_only_the_signature_left_means_ready(self, ops, pilot):
         op = await ready_operation(ops)
-        await with_support(ops, op)
+        await with_support(pilot, op)
         body = await closing(ops, op)
         assert [b["step_code"] for b in body["blockers"]] == list(SIGNING_STEPS)
         assert {b["kind"] for b in body["blockers"]} == {"signature"}
@@ -272,17 +272,17 @@ class TestBlockers:
         left = [b["step_code"] for b in (await closing(ops, op))["blockers"]]
         assert left == ["sign_captain", "sign_avsec", "sign_general"]
 
-    async def test_a_rejected_expense_needs_no_support(self, ops):
+    async def test_a_rejected_expense_needs_no_support(self, ops, pilot):
         op = await ready_operation(ops)
-        expense = await make_expense(ops, op)
+        expense = await make_expense(pilot, op)
         assert (await patch(ops, expense, status_code="rejected")).status_code == 200
         assert not any(
             b["kind"] == "expense_without_support" for b in (await closing(ops, op))["blockers"]
         )
 
-    async def test_blockers_are_precise_one_entry_per_expense(self, ops):
+    async def test_blockers_are_precise_one_entry_per_expense(self, ops, pilot):
         op = await ready_operation(ops)
-        a, b = await make_expense(ops, op), await make_expense(ops, op)
+        a, b = await make_expense(pilot, op), await make_expense(pilot, op)
         ids = [
             x["ticket_id"]
             for x in (await closing(ops, op))["blockers"]

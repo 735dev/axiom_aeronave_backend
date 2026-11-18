@@ -207,7 +207,7 @@ class TestEditAndCreatePermissions:
 
     async def test_global_create_covers_every_type(self, pilot):
         r = await pilot.post(TICKETS, json={"type_code": "operation", "payload": OPERATION})
-        assert r.status_code == 201
+        assert r.status_code == 403
 
     async def test_edit_per_type(self, new_account, admin):
         api = await only(new_account, "tickets.view", "tickets.edit.expense")

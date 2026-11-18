@@ -144,11 +144,11 @@ class TestConflicts:
         assert a.status_code == b.status_code == 200
         assert (await get_ticket(admin, exp2))["title"] == "uno"
 
-    async def test_another_user_never_receives_my_answer(self, admin, ops):
+    async def test_another_user_never_receives_my_answer(self, admin, pilot):
         op = await make_operation(admin)
         key = new_key()
         mine = await admin.post(TICKETS, json=expense_body(op), headers=header(key))
-        theirs = await ops.post(TICKETS, json=expense_body(op), headers=header(key))
+        theirs = await pilot.post(TICKETS, json=expense_body(op), headers=header(key))
         assert theirs.status_code == 201
         assert theirs.json()["id"] != mine.json()["id"]
         assert theirs.json()["created_by"] != mine.json()["created_by"]

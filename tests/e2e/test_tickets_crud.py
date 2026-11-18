@@ -75,7 +75,7 @@ class TestCreateOperation:
         op = await make_operation(admin)
         kinds = {(r["kind"], r["code"]) for r in op["relations"]}
         assert ("aircraft", "YV2323") in kinds
-        assert ("airport", "CCS") in kinds and ("airport", "PZO") in kinds
+        assert ("airport", "SVMI") in kinds and ("airport", "PZO") in kinds
 
     async def test_accounting_date_comes_from_the_payload(self, admin):
         op = await make_operation(admin, date="2026-03-04")
@@ -214,7 +214,6 @@ class TestPayloadValidation:
             ("departure_time", "25:00"),
             ("fbo_services", "uno"),
             ("fbo_services", ["no-existe"]),
-            ("aircraft_brand", 12),
         ],
     )
     async def test_invalid_values_are_rejected(self, admin, key, value):
@@ -242,9 +241,15 @@ class TestPayloadValidation:
 
     async def test_valid_optional_values_are_stored(self, admin):
         op = await make_operation(
-            admin, passengers=4, overnight=True, fbo_services=[], departure_time="08:30"
+            admin,
+            passengers=4,
+            service_condition=["overnight"],
+            fbo_services=[],
+            departure_time="08:30",
         )
-        assert op["payload"]["passengers"] == 4 and op["payload"]["overnight"] is True
+        assert op["payload"]["passengers"] == 4 and op["payload"]["service_condition"] == [
+            "overnight"
+        ]
 
     async def test_failed_creation_stores_nothing(self, admin):
         before = (await admin.get(f"{TICKETS}?limit=1")).json()["total"]
@@ -486,7 +491,7 @@ class TestUpdate:
         r = await patch(admin, op, payload={"flight_time": "2h"})
         data = r.json()["payload"]
         assert data["dispatcher"] == "Pérez" and data["flight_time"] == "2h"
-        assert data["origin"] == "CCS"
+        assert data["origin"] == "SVMI"
 
     async def test_required_field_cannot_be_blanked(self, admin):
         op = await make_operation(admin)
@@ -504,7 +509,7 @@ class TestUpdate:
         r = await patch(admin, op, title="Cambio", payload={"origin": "ZZZ"})
         assert r.status_code == 422
         again = await get_ticket(admin, op)
-        assert again["title"] == op["title"] and again["payload"]["origin"] == "CCS"
+        assert again["title"] == op["title"] and again["payload"]["origin"] == "SVMI"
 
     async def test_unknown_payload_key_rejected(self, admin):
         op = await make_operation(admin)

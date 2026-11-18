@@ -135,6 +135,20 @@ def normalize_fields(raw: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
         parent = item["depends_on"]
         if parent is None:
             continue
+        if parent.startswith("when:"):
+            key = parent[len("when:") :]
+            if (
+                not key
+                or not KEY_PATTERN.match(key)
+                or key == item["key"]
+                or kinds.get(key) != FieldType.CHECKBOX.value
+            ):
+                raise _fail(
+                    f"El campo «{item['label']}» solo puede mostrarse cuando «{key or parent}» "
+                    "es una casilla del mismo formulario.",
+                    "fields",
+                )
+            continue
         if item["type"] != FieldType.SELECT.value or parent == item["key"]:
             raise _fail(f"El campo «{item['label']}» no puede depender de «{parent}».", "fields")
         if kinds.get(parent) != FieldType.SELECT.value:

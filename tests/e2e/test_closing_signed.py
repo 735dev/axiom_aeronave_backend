@@ -195,35 +195,35 @@ class TestCloseGuards:
         r = await close_operation(ops, op)
         assert r.status_code == 422
 
-    async def test_an_expense_without_support_blocks_and_names_it(self, ops):
+    async def test_an_expense_without_support_blocks_and_names_it(self, ops, pilot):
         await set_signature(ops)
         op = await ready_operation(ops)
-        expense = await make_expense(ops, op)
+        expense = await make_expense(pilot, op)
         await sign(ops, op)
         r = await close_operation(ops, op)
         assert r.status_code == 422 and expense["code"] in r.json()["detail"]
 
-    async def test_an_unvalidated_receipt_blocks(self, ops):
+    async def test_an_unvalidated_receipt_blocks(self, ops, pilot):
         await set_signature(ops)
         op = await ready_operation(ops)
-        expense = await make_expense(ops, op)
+        expense = await make_expense(pilot, op)
         await attach(ops, expense, "recibo.png", content=readable_png())
         await sign(ops, op)
         r = await close_operation(ops, op)
         assert r.status_code == 422 and "sin validar" in r.json()["detail"]
 
-    async def test_validating_the_receipt_unblocks(self, ops):
+    async def test_validating_the_receipt_unblocks(self, ops, pilot):
         await set_signature(ops)
         op = await ready_operation(ops)
-        expense = await make_expense(ops, op)
+        expense = await make_expense(pilot, op)
         await validate_support(ops, expense, 100)
         await sign(ops, op)
         assert (await close_operation(ops, op)).status_code == 200
 
-    async def test_a_rejected_expense_without_support_does_not_block(self, ops):
+    async def test_a_rejected_expense_without_support_does_not_block(self, ops, pilot):
         await set_signature(ops)
         op = await ready_operation(ops)
-        expense = await make_expense(ops, op)
+        expense = await make_expense(pilot, op)
         await patch(ops, expense, status_code="rejected")
         await sign(ops, op)
         assert (await close_operation(ops, op)).status_code == 200
@@ -234,10 +234,10 @@ class TestCloseGuards:
         r = await close_operation(ops, op)
         assert r.status_code == 422
 
-    async def test_a_failed_close_leaves_the_operation_open_and_audits_nothing_as_closed(self, ops):
+    async def test_a_failed_close_leaves_the_operation_open_and_audits_nothing_as_closed(self, ops, pilot):
         await set_signature(ops)
         op = await ready_operation(ops)
-        await make_expense(ops, op)
+        await make_expense(pilot, op)
         await sign(ops, op)
         await close_operation(ops, op)
         assert (await get_ticket(ops, op))["status_code"] != "closed"
@@ -257,10 +257,10 @@ class TestCloseGuards:
 
 
 class TestStamp:
-    async def test_close_stamps_who_when_totals_files_and_folder(self, ops):
+    async def test_close_stamps_who_when_totals_files_and_folder(self, ops, pilot):
         await set_signature(ops)
         op = await ready_operation(ops)
-        expense = await supported_expense(ops, op, amount=100)
+        expense = await supported_expense(pilot, op, amount=100)
         await attach(ops, op, "m.pdf", field_key="manifest")
         await patch(ops, expense, status_code="verified")
         await sign(ops, op)
@@ -307,9 +307,9 @@ class TestStamp:
         body = await closing(ops, op)
         assert body["closed"] is True and body["stamp"]["signed_by"]
 
-    async def test_a_child_that_closes_gets_no_stamp(self, ops):
+    async def test_a_child_that_closes_gets_no_stamp(self, ops, pilot):
         op = await make_operation(ops)
-        expense = await make_expense(ops, op)
+        expense = await make_expense(pilot, op)
         await patch(ops, expense, status_code="verified")
         assert (await get_ticket(ops, expense))["closing"] is None
 
@@ -366,9 +366,9 @@ class TestImmutability:
         )
         assert r.status_code == 409
 
-    async def test_a_new_expense_cannot_be_added_to_a_sealed_operation(self, ops):
+    async def test_a_new_expense_cannot_be_added_to_a_sealed_operation(self, ops, pilot):
         op = await closed_operation(ops)
-        r = await ops.post(
+        r = await pilot.post(
             f"{API}/tickets/",
             json={
                 "type_code": "expense",

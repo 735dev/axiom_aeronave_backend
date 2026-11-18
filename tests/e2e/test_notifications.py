@@ -35,6 +35,7 @@ async def crew(logged):
         "maint": "mantenimiento@transvalor.com",
         "ground": "tierra@transvalor.com",
         "admin": "admin@transvalor.com",
+        "avsec": "avsec@transvalor.com",
     }
     apis, ids, roles = {}, {}, {}
     for key, email in emails.items():
@@ -47,7 +48,7 @@ async def crew(logged):
 
 async def receivers(crew, ticket, kind=None) -> list[str]:
     who = []
-    for key in ("su", "ops", "pilot", "maint", "ground", "admin"):
+    for key in ("su", "ops", "pilot", "maint", "ground", "admin", "avsec"):
         if await about(crew[key], ticket, kind):
             who.append(key)
     return sorted(who)
@@ -61,7 +62,7 @@ async def role_ids(admin) -> dict[str, str]:
 class TestCreationNotices:
     async def test_new_operation_notifies_operations_and_the_pilot(self, crew):
         op = await make_operation(crew["su"])
-        assert await receivers(crew, op) == ["ops", "pilot"]
+        assert await receivers(crew, op) == ["admin", "avsec", "ground", "ops", "pilot"]
         notice = (await about(crew["pilot"], op))[0]
         assert notice["kind"] == "operation_created"
         assert op["code"] in notice["body"]
@@ -70,14 +71,14 @@ class TestCreationNotices:
     async def test_operation_for_another_role_notifies_that_role(self, crew):
         roles = await role_ids(crew["su"])
         op = await make_operation(crew["su"], assigned_role_id=roles["pilot"])
-        assert await receivers(crew, op) == ["pilot"]
+        assert await receivers(crew, op) == ["admin", "avsec", "ground", "pilot"]
 
     async def test_a_named_responsible_gets_it_whatever_their_role(self, crew):
         roles = await role_ids(crew["su"])
         op = await make_operation(
             crew["su"], assigned_role_id=roles["pilot"], assigned_user_id=crew["ids"]["ground"]
         )
-        assert await receivers(crew, op) == ["ground", "pilot"]
+        assert await receivers(crew, op) == ["admin", "avsec", "ground", "pilot"]
 
     async def test_superuser_does_not_get_foreign_audience_notices(self, crew):
         op = await make_operation(crew["su"])
@@ -231,7 +232,7 @@ class TestAudienceFilter:
         op = await make_operation(crew["su"])
         nid = (await about(crew["ops"], op))[0]["id"]
         before = (await notices(crew["ops"]))["unread"]
-        r = await crew["pilot"].patch(f"{API}/notifications/{nid}/", json={})
+        r = await crew["maint"].patch(f"{API}/notifications/{nid}/", json={})
         assert r.status_code == 404
         assert (await notices(crew["ops"]))["unread"] == before
         assert (await about(crew["ops"], op))[0]["read"] is False
@@ -266,7 +267,7 @@ class TestAudienceFilter:
 
     async def test_unknown_filter_does_not_widen_the_audience(self, crew):
         op = await make_operation(crew["su"])
-        r = await crew["pilot"].get(f"{API}/notifications/?audience=operations&role_id=x&limit=100")
+        r = await crew["maint"].get(f"{API}/notifications/?audience=operations&role_id=x&limit=100")
         assert r.status_code == 200
         assert all(n["ticket_id"] != op["id"] for n in r.json()["data"])
 

@@ -58,6 +58,31 @@ class TestManifest:
         assert saved[0]["nationality"] == "VE" and saved[1]["nationality"] is None
         assert all(p["id"] and p["passport_file_id"] is None for p in saved)
 
+    async def test_each_person_keeps_minor_disability_wheelchair_and_permit(self, ops):
+        op = await make_operation(ops)
+        child = person(
+            "Ana Niño",
+            is_minor=True,
+            has_disability=True,
+            needs_wheelchair=True,
+            has_minor_permit=True,
+        )
+        saved = (await put(ops, op, [child])).json()
+        assert saved[0]["is_minor"] is True
+        assert saved[0]["has_disability"] is True
+        assert saved[0]["needs_wheelchair"] is True
+        assert saved[0]["has_minor_permit"] is True
+        again = await manifest(ops, op)
+        assert again[0]["is_minor"] is True and again[0]["has_minor_permit"] is True
+
+    async def test_a_person_without_marks_is_not_flagged(self, ops):
+        op = await make_operation(ops)
+        saved = (await put(ops, op, [person("Adulto")])).json()
+        assert saved[0]["is_minor"] is False
+        assert saved[0]["has_disability"] is False
+        assert saved[0]["needs_wheelchair"] is False
+        assert saved[0]["has_minor_permit"] is False
+
     async def test_post_is_the_same_verb_as_the_simulator_uses(self, ops):
         op = await make_operation(ops)
         r = await ops.post(ticket_url(op, "passengers/"), json={"passengers": [MARIA]})
@@ -161,9 +186,9 @@ class TestManifest:
         assert (await ops.get(ticket_url(ZERO, "passengers/"))).status_code == 404
         assert (await put(ops, ZERO, [MARIA])).status_code == 404
 
-    async def test_a_non_operation_ticket_has_no_manifest(self, ops):
+    async def test_a_non_operation_ticket_has_no_manifest(self, ops, pilot):
         op = await make_operation(ops)
-        expense = await make_expense(ops, op)
+        expense = await make_expense(pilot, op)
         assert (await ops.get(ticket_url(expense, "passengers/"))).status_code == 404
         assert (await put(ops, expense, [MARIA])).status_code == 404
 
@@ -257,7 +282,7 @@ class TestSearch:
         [hit] = (await found(admin, t))[0]["operations"]
         assert hit["id"] == op["id"] and hit["code"] == op["code"]
         assert hit["status_code"] == op["status_code"] and hit["status_name"]
-        assert hit["date"] == "2026-08-19" and hit["route"] == "CCS → PZO"
+        assert hit["date"] == "2026-08-19" and hit["route"] == "SVMI → PZO"
         assert hit["status_is_final"] is False
 
     async def test_no_match_is_an_empty_list_not_an_error(self, admin):

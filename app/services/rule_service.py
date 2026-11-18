@@ -6,7 +6,13 @@ from typing import Any
 
 from fastapi_basekit.exceptions.api_exceptions import NotFoundException
 
-from app.config.tickets import RULE_FIELD_OPERATORS, ROUTE_PATTERN, RuleField, RuleOperator
+from app.config.tickets import (
+    KEY_PATTERN,
+    RULE_FIELD_OPERATORS,
+    ROUTE_PATTERN,
+    RuleField,
+    RuleOperator,
+)
 from app.exceptions.tickets import TicketError
 from app.models.ticket import BusinessRule
 from app.repositories.business_rule import BusinessRuleRepository
@@ -58,13 +64,22 @@ class RuleService(ProjectService[BusinessRule]):
                 out["value"] = None
             elif values.get("value") in (None, ""):
                 raise TicketError("validation", "Indica el valor de la regla.", "value")
-            elif field == RuleField.AMOUNT_BASE:
+            elif field in (RuleField.AMOUNT_BASE, RuleField.PASSENGERS):
                 number = to_decimal(values["value"])
                 if number is None or number < 0:
                     raise TicketError(
                         "validation", "El valor debe ser un número no negativo.", "value"
                     )
                 out["value"] = format(number, "f")
+            elif field == RuleField.CHECKBOX:
+                key = str(values.get("value") or "").strip()
+                if not KEY_PATTERN.match(key):
+                    raise TicketError(
+                        "validation",
+                        "El valor es la clave del casillero, por ejemplo dangerous_goods.",
+                        "value",
+                    )
+                out["value"] = key
             else:
                 out["value"] = str(values["value"]).strip()
         return out

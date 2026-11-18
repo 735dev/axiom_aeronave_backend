@@ -1,6 +1,4 @@
-"""Marca y modelo son listas de catálogo y deben ser coherentes con la matrícula (§6.2)."""
-
-import pytest
+"""Marca y modelo salen de la matrícula. El régimen sale de la ficha (§6.2)."""
 
 from tests.e2e.conftest import API
 from tests.e2e.tickets_support import (
@@ -40,7 +38,8 @@ class TestCatalogs:
         assert models["cheyenne"]["extra"] == "piper"
         assert fleet["YV2323"]["extra"] == "king_air_200"
         assert fleet["YV2528"]["extra"] == "cheyenne"
-        assert fleet["YV2822"]["extra"] == "king_air_200"
+        assert fleet["YV2822"]["extra"] == "king_air_300"
+        assert fleet["YV3143"]["extra"] == "pa_31t"
 
     async def test_search_inside_the_new_catalogs(self, pilot):
         data = (await pilot.get(f"{ITEMS}?catalog=aircraft_models&q=cheyen")).json()["data"]
@@ -54,8 +53,9 @@ class TestOperationFields:
         assert (brand["type"], brand["catalog"], brand["read_only"]) == (
             "select",
             "aircraft_brands",
-            False,
+            True,
         )
+        assert brand["help"].startswith("Sale de la matrícula")
         assert (model["type"], model["catalog"], model["depends_on"]) == (
             "select",
             "aircraft_models",
@@ -78,97 +78,54 @@ class TestOperationFields:
 
 
 class TestCoherence:
-    async def test_a_coherent_combination_is_stored(self, admin):
+    async def test_the_tail_fills_brand_model_and_regime(self, admin):
+        op = await make_operation(admin, aircraft="YV2822")
+        assert op["payload"]["aircraft_brand"] == "beechcraft"
+        assert op["payload"]["aircraft_model"] == "king_air_300"
+        assert op["payload"]["regime"] == "rav_91"
+
+    async def test_a_handwritten_brand_does_not_replace_the_tail(self, admin):
         op = await make_operation(
-            admin, aircraft_brand="beechcraft", aircraft_model="king_air_200", aircraft="YV2822"
+            admin, aircraft_brand="piper", aircraft_model="cheyenne", aircraft="YV2822"
         )
         assert op["payload"]["aircraft_brand"] == "beechcraft"
-        assert op["payload"]["aircraft_model"] == "king_air_200"
+        assert op["payload"]["aircraft_model"] == "king_air_300"
 
-    async def test_all_three_absent_is_still_allowed(self, admin):
-        op = await make_operation(admin)
-        assert "aircraft_brand" not in op["payload"] and "aircraft_model" not in op["payload"]
-
-    async def test_a_model_of_another_brand_is_rejected(self, admin):
+    async def test_taxi_aereo_is_refused_until_the_sheet_says_so(self, admin):
         r = await admin.post(
             TICKETS,
             json={
                 "type_code": "operation",
-                "payload": {
-                    **OPERATION,
-                    "aircraft_brand": "piper",
-                    "aircraft_model": "king_air_200",
-                },
+                "payload": {**OPERATION, "aircraft": "YV2822", "regime": "rav_135"},
             },
         )
         assert r.status_code == 422
-        assert r.json()["errors"] == {"aircraft_model": "El modelo no corresponde a la marca."}
+        assert r.json()["errors"]["regime"] == "Esta matrícula no está habilitada para ese régimen."
 
-    async def test_an_aircraft_of_another_model_is_rejected(self, admin):
-        r = await admin.post(
-            TICKETS,
-            json={
-                "type_code": "operation",
-                "payload": {
-                    **OPERATION,
-                    "aircraft": "YV2528",
-                    "aircraft_brand": "beechcraft",
-                    "aircraft_model": "king_air_200",
-                },
-            },
-        )
-        assert r.status_code == 422
-        assert r.json()["errors"] == {"aircraft": "La matrícula no corresponde a ese modelo."}
-
-    @pytest.mark.parametrize(
-        ("key", "value"),
-        [("aircraft_brand", "airbus"), ("aircraft_model", "a320")],
-    )
-    async def test_an_unknown_code_is_rejected(self, admin, key, value):
-        r = await admin.post(
-            TICKETS, json={"type_code": "operation", "payload": {**OPERATION, key: value}}
-        )
-        assert r.status_code == 422 and key in r.json()["errors"]
-
-    async def test_an_inactive_model_is_rejected(self, admin):
-        model = (await items(admin, "aircraft_models"))["cheyenne"]
+    async def test_an_inactive_model_blocks_the_tail(self, admin):
+        model = (await items(admin, "aircraft_models"))["king_air_200"]
         off = await admin.patch(f"{ITEMS}{model['id']}/", json={"is_active": False})
         assert off.status_code == 200, off.text
         try:
-            r = await admin.post(
-                TICKETS,
-                json={
-                    "type_code": "operation",
-                    "payload": {**OPERATION, "aircraft_model": "cheyenne"},
-                },
+            r = await admin.post(TICKETS, json={"type_code": "operation", "payload": {**OPERATION}})
+            assert r.status_code == 422 and r.json()["errors"]["aircraft"] == (
+                "La matrícula no tiene un modelo activo."
             )
-            assert r.status_code == 422 and "aircraft_model" in r.json()["errors"]
         finally:
             await admin.patch(f"{ITEMS}{model['id']}/", json={"is_active": True})
 
-    async def test_an_update_is_checked_against_what_is_stored(self, admin):
-        op = await make_operation(
-            admin, aircraft_brand="beechcraft", aircraft_model="king_air_200", aircraft="YV2323"
-        )
-        wrong_brand = await patch(admin, op, payload={"aircraft_brand": "piper"})
-        assert wrong_brand.status_code == 422
-        assert wrong_brand.json()["errors"] == {
-            "aircraft_brand": "La marca no corresponde al modelo."
-        }
-        wrong_model = await patch(admin, op, payload={"aircraft_model": "cheyenne"})
-        assert wrong_model.status_code == 422
-        assert "aircraft_model" in wrong_model.json()["errors"]
-        both = await patch(
-            admin, op, payload={"aircraft_brand": "piper", "aircraft_model": "cheyenne"}
-        )
-        assert both.status_code == 422  # coherent with each other, not with YV2323
-        assert both.json()["errors"] == {
-            "aircraft_model": "El modelo no corresponde a la matrícula."
-        }
-        other = await patch(admin, op, payload={"dispatcher": "Pérez"})
+    async def test_editing_another_field_keeps_the_link(self, admin):
+        op = await make_operation(admin, aircraft="YV2323")
+        assert op["payload"]["aircraft_model"] == "king_air_200"
+        other = await patch(admin, op, payload={"dispatcher": "Pérez", "aircraft_brand": "piper"})
         assert other.status_code == 200, other.text
         stored = (await get_ticket(admin, op))["payload"]
-        assert stored["aircraft_model"] == "king_air_200" and stored["dispatcher"] == "Pérez"
+        assert stored["aircraft_brand"] == "beechcraft"
+        assert stored["aircraft_model"] == "king_air_200"
+        assert stored["dispatcher"] == "Pérez"
+        other_tail = await make_operation(admin, aircraft="YV3143")
+        assert other_tail["payload"]["aircraft_brand"] == "piper"
+        assert other_tail["payload"]["aircraft_model"] == "pa_31t"
 
     async def test_other_types_are_not_affected(self, admin):
         op = await make_operation(admin)

@@ -1,20 +1,50 @@
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
 from fastapi_basekit.exceptions.api_exceptions import NotFoundException
 
 from app.config.catalogs import CATALOG_DEFINITIONS, CATALOG_ITEM_CODE_MAX, CATALOG_KEYS
+from app.config.notifications import ROLE_EXECUTIVE, ROLE_OPERATIONS, NotificationKind
 from app.exceptions.admin import AdminError
 from app.models.catalog import CatalogItem
 from app.repositories.catalog import CatalogItemRepository
 from app.services.base import ProjectService
 from app.services.bulk_import import BulkImportMixin
+from app.services.notification_service import NotificationService
 from app.utils.bulk_import import RowPlan
 from app.utils.slug import slugify
 
+SHEETS_CATALOG = "aircraft_sheets"
+OPERATIONAL = "operational"
+
 _CODE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+
+
+def sheet_status(extra: str | None) -> str:
+    """Status stored in an aircraft sheet. Empty when the extra is not that JSON."""
+    if not extra or not str(extra).lstrip().startswith("{"):
+        return ""
+    try:
+        data = json.loads(extra)
+    except json.JSONDecodeError:
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    return str(data.get("status") or "").strip()
+
+
+def returned_to_service(before: str | None, after: str | None) -> bool:
+    """True when a sheet that already had a non-operational condition becomes operational.
+
+    A blank sheet filled in as operational is a first load, not a return to service.
+    """
+    previous = sheet_status(before)
+    if previous in ("", OPERATIONAL):
+        return False
+    return sheet_status(after) == OPERATIONAL
 
 
 class CatalogService(BulkImportMixin, ProjectService[CatalogItem]):
@@ -94,7 +124,10 @@ class CatalogService(BulkImportMixin, ProjectService[CatalogItem]):
 
     async def import_apply_plan(self, plan: RowPlan, context) -> None:
         if plan.action == "update":
+            before = plan.target.extra
             await self.repository.update(plan.target.id, plan.data)
+            if context["catalog"] == SHEETS_CATALOG:
+                await self._aircraft_returned(plan.target.code, before, plan.data.get("extra"))
             return
         await self.repository.create(
             {
@@ -144,7 +177,31 @@ class CatalogService(BulkImportMixin, ProjectService[CatalogItem]):
         if payload.get("is_active") is False and item.is_system:
             raise AdminError("protected", "Ese registro es del sistema y no puede desactivarse.")
         allowed = {k: v for k, v in payload.items() if k in ("name", "extra", "is_active")}
-        return await super().update(id, allowed)
+        before = item.extra
+        updated = await super().update(id, allowed)
+        if item.catalog == SHEETS_CATALOG and "extra" in allowed:
+            await self._aircraft_returned(updated.code, before, updated.extra)
+        return updated
+
+    async def _aircraft_returned(self, tail: str, before: str | None, after: str | None) -> None:
+        """Tell operations and general management when a tail comes back to service.
+
+        A first load, or a sheet that was already operational, does not notify.
+        A non-operational aircraft can still be assigned to an operation.
+        """
+        if not returned_to_service(before, after):
+            return
+        notifications = getattr(self, "notifications", None)
+        roles = getattr(self, "roles", None)
+        if notifications is None or roles is None:
+            return
+        service = NotificationService(notifications, request=self.request, roles=roles)
+        await service.notify(
+            NotificationKind.AIRCRAFT_AVAILABLE,
+            "Aeronave disponible",
+            f"{tail} volvió a estar operativa.",
+            roles=await service._roles([ROLE_EXECUTIVE, ROLE_OPERATIONS]),
+        )
 
     async def delete(self, id) -> bool:  # noqa: A002
         item = await self.repository.get_scoped(id)

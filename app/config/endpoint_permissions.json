@@ -430,6 +430,13 @@
     ],
     "description": "Totals over the rows the caller may view (same scoped base query as the listing)."
   },
+  "GET /api/v1/tickets/activity/": {
+    "access": "permission",
+    "permissions": [
+      "analytics.view"
+    ],
+    "description": "Counts of operations or attached work the caller may view, same date scope as totals."
+  },
   "GET /api/v1/tickets/{id}/closing/": {
     "access": "permission",
     "permissions": [

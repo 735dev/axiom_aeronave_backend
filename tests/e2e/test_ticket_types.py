@@ -554,8 +554,8 @@ class TestAccess:
     async def test_anonymous_gets_401(self, anon, method):
         assert (await anon.request(method.upper(), TYPES, json={})).status_code == 401
 
-    async def test_operations_role_manages_types(self, ops):
-        assert (await ops.post(TYPES, json=type_body())).status_code == 201
+    async def test_operations_role_does_not_manage_types(self, ops):
+        assert (await ops.post(TYPES, json=type_body())).status_code == 403
 
     async def test_new_type_is_usable_end_to_end(self, admin):
         t = await create_type(

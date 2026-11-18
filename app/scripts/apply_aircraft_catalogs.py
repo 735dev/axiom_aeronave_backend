@@ -8,8 +8,9 @@ to repeat):
 1. creates the items of the catalogs `aircraft_brands` and `aircraft_models` that are missing;
 2. sets `extra` (the model code) on the seeded aircrafts, only where it is still empty;
 3. on the operation type, turns `aircraft_brand` and `aircraft_model` into catalog selects
-   (model filtered by brand, both editable) and moves `aircraft`, brand and model together
-   right after the control number, as in the paper form. Every other field is left as is.
+   filled from the tail (read-only; the model still depends on the brand) and moves
+   `aircraft`, brand and model together right after the control number. Every other
+   field is left as is, except the regime help line.
 
 Tickets already created are not touched: their old free-text brand/model still reads, and the
 coherence check only looks at values written in a later edit.
@@ -52,23 +53,32 @@ FIELD_COLUMNS = (
     "edit_permission",
     "step_code",
 )
-#: The attributes this upgrade owns on the three aircraft fields.
+FROM_TAIL = "Sale de la matrícula. No se vuelve a escribir."
+REGIME_HELP = (
+    "Al elegir la matrícula queda el régimen de esa aeronave. "
+    "Taxi aéreo solo lista las matrículas habilitadas para ese régimen."
+)
+#: The attributes this upgrade owns on the aircraft fields.
 MANAGED = {
     "aircraft_brand": {
         "type": "select",
         "catalog": "aircraft_brands",
         "role": "aircraft_brand",
         "depends_on": None,
-        "read_only": False,
+        "read_only": True,
         "options": None,
+        "help": FROM_TAIL,
+        "edit_permission": None,
     },
     "aircraft_model": {
         "type": "select",
         "catalog": "aircraft_models",
         "role": "aircraft_model",
         "depends_on": "aircraft_brand",
-        "read_only": False,
+        "read_only": True,
         "options": None,
+        "help": FROM_TAIL,
+        "edit_permission": None,
     },
 }
 AIRCRAFT_KEY = "aircraft"
@@ -121,6 +131,8 @@ async def _upgrade_operation(session: AsyncSession, report: SeedReport) -> None:
         return
     for key, wanted in MANAGED.items():
         rows[key].update(wanted)
+    if "regime" in rows:
+        rows["regime"]["help"] = REGIME_HELP
 
     order = [f.key for f in current if f.key not in GROUP]
     at = order.index(ANCHOR) + 1 if ANCHOR in order else min(2, len(order))

@@ -237,6 +237,36 @@
       "name": "Cerrar períodos de conciliación",
       "module_code": "analytics",
       "is_system": true
+    },
+    {
+      "code": "operations.clearance",
+      "name": "Marcar una operación sin novedad",
+      "module_code": "tickets",
+      "is_system": true
+    },
+    {
+      "code": "operations.instruction",
+      "name": "Editar la instrucción de la operación",
+      "module_code": "tickets",
+      "is_system": true
+    },
+    {
+      "code": "operations.crew",
+      "name": "Registrar los datos de la tripulación",
+      "module_code": "tickets",
+      "is_system": true
+    },
+    {
+      "code": "operations.ground",
+      "name": "Registrar apoyo en tierra",
+      "module_code": "tickets",
+      "is_system": true
+    },
+    {
+      "code": "operations.avsec",
+      "name": "Registrar la estación de personas",
+      "module_code": "tickets",
+      "is_system": true
     }
   ],
   "roles": [
@@ -254,13 +284,12 @@
       "is_system": false,
       "permissions": [
         "tickets.view",
-        "tickets.create",
         "tickets.edit",
         "tickets.decide_any",
-        "ticket_types.manage",
         "notifications.view",
         "catalogs.view",
-        "analytics.view"
+        "analytics.view",
+        "operations.instruction"
       ]
     },
     {
@@ -273,7 +302,9 @@
         "tickets.create",
         "tickets.edit",
         "notifications.view",
-        "tickets.sign"
+        "tickets.sign",
+        "operations.crew",
+        "operations.ground"
       ]
     },
     {
@@ -297,7 +328,8 @@
         "tickets.view",
         "tickets.create",
         "tickets.edit",
-        "notifications.view"
+        "notifications.view",
+        "operations.ground"
       ]
     },
     {
@@ -338,11 +370,15 @@
         "notifications.view",
         "catalogs.view",
         "tickets.sign",
-        "passengers.view"
+        "passengers.view",
+        "operations.avsec"
       ]
     }
   ],
   "role_type_grants": {
+    "operations": [
+      "tickets.create.operation"
+    ],
     "maintenance": [
       "tickets.edit.technical_report"
     ]
@@ -510,6 +546,12 @@
         "name": "Bolívar",
         "sort_order": 2,
         "is_system": true
+      },
+      {
+        "code": "EUR",
+        "name": "Euro",
+        "sort_order": 3,
+        "is_system": true
       }
     ],
     "operation_kinds": [
@@ -538,8 +580,59 @@
         "is_system": false
       }
     ],
-    "service_types": [],
-    "fbos": [],
+    "service_types": [
+      {
+        "code": "passengers",
+        "name": "Pasajeros",
+        "sort_order": 1,
+        "is_system": true
+      },
+      {
+        "code": "cargo",
+        "name": "Carga",
+        "sort_order": 2,
+        "is_system": true
+      },
+      {
+        "code": "mail",
+        "name": "Correo",
+        "sort_order": 3,
+        "is_system": true
+      },
+      {
+        "code": "combined",
+        "name": "Pasajeros, carga y correo",
+        "sort_order": 4,
+        "is_system": true
+      },
+      {
+        "code": "on_demand",
+        "name": "Servicio a demanda",
+        "sort_order": 5,
+        "is_system": true
+      },
+      {
+        "code": "ambulance",
+        "name": "Transporte de pacientes",
+        "sort_order": 6,
+        "is_system": true
+      },
+      {
+        "code": "valuables",
+        "name": "Traslado de valores",
+        "sort_order": 7,
+        "is_system": true
+      }
+    ],
+    "fbos": [
+      {
+        "code": "caracas_flight_service",
+        "name": "Caracas Flight Service, C.A.",
+        "extra": "J-400878284",
+        "sort_order": 1,
+        "is_system": false
+      }
+    ],
     "fuel_suppliers": [],
     "suppliers": [],
     "operation_scopes": [
@@ -574,6 +667,24 @@
         "name": "Fuera de servicio",
         "sort_order": 3,
         "is_system": true
+      },
+      {
+        "code": "maintenance",
+        "name": "Mantenimiento",
+        "sort_order": 4,
+        "is_system": false
+      },
+      {
+        "code": "in_flight",
+        "name": "En vuelo",
+        "sort_order": 5,
+        "is_system": false
+      },
+      {
+        "code": "in_hangar",
+        "name": "En hangar",
+        "sort_order": 6,
+        "is_system": false
       }
     ],
     "aircraft_brands": [
@@ -604,61 +715,404 @@
         "extra": "piper",
         "sort_order": 2,
         "is_system": false
+      },
+      {
+        "code": "king_air_300",
+        "name": "King Air 300",
+        "extra": "beechcraft",
+        "sort_order": 3,
+        "is_system": false
+      },
+      {
+        "code": "pa_31t",
+        "name": "PA-31T",
+        "extra": "piper",
+        "sort_order": 4,
+        "is_system": false
       }
     ],
     "aircrafts": [
       {
+        "code": "YV2822",
+        "name": "King Air 300",
+        "sort_order": 1,
+        "is_system": false,
+        "extra": "king_air_300"
+      },
+      {
+        "code": "YV3143",
+        "name": "PA-31T",
+        "sort_order": 2,
+        "is_system": false,
+        "extra": "pa_31t"
+      },
+      {
         "code": "YV2323",
         "name": "King Air 200",
-        "sort_order": 1,
+        "sort_order": 3,
         "is_system": false,
         "extra": "king_air_200"
       },
       {
         "code": "YV2528",
         "name": "Cheyenne",
-        "sort_order": 2,
+        "sort_order": 4,
         "is_system": false,
         "extra": "cheyenne"
+      }
+    ],
+    "flight_regimes": [
+      {
+        "code": "rav_91",
+        "name": "Aviación privada (RAV 91)",
+        "sort_order": 1,
+        "is_system": true
       },
       {
+        "code": "rav_135",
+        "name": "Taxi aéreo (RAV 135)",
+        "sort_order": 2,
+        "is_system": true
+      }
+    ],
+    "aircraft_sheets": [
+      {
         "code": "YV2822",
-        "name": "King Air 200",
+        "name": "YV2822",
+        "extra": "{\"regime\":\"rav_91\",\"serial\":\"FA122\",\"year\":\"1987\",\"pax\":\"8 + 1 en el compartimento de carga\",\"mtow\":\"14100 lb (6395 kg)\",\"cargo\":\"510 lb (232 kg)\",\"status\":\"operational\",\"expected_return\":\"\",\"endurance\":\"5 h 30 min\",\"night_nav\":\"Instrumentación para vuelos IR\",\"captain\":\"Richard Ollarves\",\"copilot\":\"Carlos Romero\",\"certification\":\"RAV 91, en proceso para RAV 135\"}",
+        "sort_order": 1,
+        "is_system": false
+      },
+      {
+        "code": "YV3143",
+        "name": "YV3143",
+        "extra": "{\"regime\":\"rav_91\",\"serial\":\"31T-8020053\",\"year\":\"1980\",\"pax\":\"6 + 2 de los pilotos\",\"mtow\":\"9000 lb (4082 kg)\",\"cargo\":\"350 lb\",\"status\":\"operational\",\"expected_return\":\"\",\"endurance\":\"4 h 30 min\",\"night_nav\":\"Instrumentación para vuelos full IFR\",\"captain\":\"Giorgio Ramones\",\"copilot\":\"Adriano Trevisi\",\"certification\":\"RAV 91\"}",
+        "sort_order": 2,
+        "is_system": false
+      },
+      {
+        "code": "YV2323",
+        "name": "YV2323",
+        "extra": "{\"regime\":\"rav_91\",\"serial\":\"\",\"year\":\"\",\"pax\":\"\",\"mtow\":\"\",\"cargo\":\"\",\"status\":\"operational\",\"expected_return\":\"\"}",
         "sort_order": 3,
-        "is_system": false,
-        "extra": "king_air_200"
+        "is_system": false
+      },
+      {
+        "code": "YV2528",
+        "name": "YV2528",
+        "extra": "{\"regime\":\"rav_91\",\"serial\":\"\",\"year\":\"\",\"pax\":\"\",\"mtow\":\"\",\"cargo\":\"\",\"status\":\"operational\",\"expected_return\":\"\"}",
+        "sort_order": 4,
+        "is_system": false
       }
     ],
     "airports": [
       {
-        "code": "CCS",
-        "name": "Maiquetía",
+        "code": "SVAC",
+        "name": "SVAC · Acarigua — Oswaldo Guevara Mujica",
         "sort_order": 1,
-        "is_system": false
+        "is_system": false,
+        "extra": "domestic"
       },
       {
         "code": "PZO",
         "name": "Puerto Ordaz",
         "sort_order": 2,
-        "is_system": false
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVAN",
+        "name": "SVAN · Anaco",
+        "sort_order": 2,
+        "is_system": false,
+        "extra": "domestic"
       },
       {
         "code": "SVBC",
-        "name": "Barcelona",
+        "name": "SVBC · Barcelona — José Antonio Anzoátegui",
         "sort_order": 3,
-        "is_system": false
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVBM",
+        "name": "SVBM · Barquisimeto — Jacinto Lara",
+        "sort_order": 4,
+        "is_system": false,
+        "extra": "domestic"
       },
       {
         "code": "SVSA",
         "name": "San Cristóbal",
         "sort_order": 4,
-        "is_system": false
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVCP",
+        "name": "SVCP · Carúpano — José Francisco Bermúdez",
+        "sort_order": 5,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVCS",
+        "name": "SVCS · Caracas",
+        "sort_order": 6,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVCB",
+        "name": "SVCB · Ciudad Bolívar — Tomás de Heres",
+        "sort_order": 7,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVPR",
+        "name": "SVPR · Ciudad Guayana — Manuel Carlos Piar",
+        "sort_order": 8,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVCU",
+        "name": "SVCU · Cumaná — Mariscal Antonio José de Sucre",
+        "sort_order": 9,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVVG",
+        "name": "SVVG · El Vigía — Juan Pablo Pérez Alfonso",
+        "sort_order": 10,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVGI",
+        "name": "SVGI · Güiria — Almirante Cristóbal Colón",
+        "sort_order": 11,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVLF",
+        "name": "SVLF · La Fría",
+        "sort_order": 12,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVRS",
+        "name": "SVRS · Los Roques — Gran Roque",
+        "sort_order": 13,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVMI",
+        "name": "SVMI · Maiquetía — Simón Bolívar",
+        "sort_order": 14,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVBS",
+        "name": "SVBS · Maracay — Florencio Gómez",
+        "sort_order": 15,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVMC",
+        "name": "SVMC · Maracaibo — Rafael Urdaneta",
+        "sort_order": 16,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVMT",
+        "name": "SVMT · Maturín — General José Tadeo Monagas",
+        "sort_order": 17,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVMG",
+        "name": "SVMG · Margarita — Santiago Mariño",
+        "sort_order": 18,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVMD",
+        "name": "SVMD · Mérida — Alberto Carnevalli",
+        "sort_order": 19,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVJC",
+        "name": "SVJC · Paraguaná — Josefa Camejo",
+        "sort_order": 20,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVPA",
+        "name": "SVPA · Puerto Ayacucho — Cacique Aramare",
+        "sort_order": 21,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVPC",
+        "name": "SVPC · Puerto Cabello — General Bartolomé Salom",
+        "sort_order": 22,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVSR",
+        "name": "SVSR · San Fernando de Apure",
+        "sort_order": 23,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVSO",
+        "name": "SVSO · Santo Domingo del Táchira — Buenaventura Vivas",
+        "sort_order": 24,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVST",
+        "name": "SVST · San Tomé",
+        "sort_order": 25,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVSZ",
+        "name": "SVSZ · Santa Bárbara del Zulia — Miguel A. Urdaneta",
+        "sort_order": 26,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVTC",
+        "name": "SVTC · Tucupita",
+        "sort_order": 27,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVVA",
+        "name": "SVVA · Valencia — Arturo Michelena",
+        "sort_order": 28,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "SVVL",
+        "name": "SVVL · Valera — Antonio Nicolás Briceño",
+        "sort_order": 29,
+        "is_system": false,
+        "extra": "domestic"
+      },
+      {
+        "code": "TNCA",
+        "name": "TNCA · Aruba — Reina Beatrix",
+        "sort_order": 30,
+        "is_system": false,
+        "extra": "international"
+      },
+      {
+        "code": "TNCB",
+        "name": "TNCB · Bonaire — Flamingo",
+        "sort_order": 31,
+        "is_system": false,
+        "extra": "international"
+      },
+      {
+        "code": "TNCC",
+        "name": "TNCC · Curazao — Hato",
+        "sort_order": 32,
+        "is_system": false,
+        "extra": "international"
+      },
+      {
+        "code": "KFXE",
+        "name": "KFXE · Fort Lauderdale Executive",
+        "sort_order": 33,
+        "is_system": false,
+        "extra": "international"
+      },
+      {
+        "code": "SKBO",
+        "name": "SKBO · Bogotá — El Dorado",
+        "sort_order": 34,
+        "is_system": false,
+        "extra": "international"
+      },
+      {
+        "code": "SKCG",
+        "name": "SKCG · Cartagena — Rafael Núñez",
+        "sort_order": 35,
+        "is_system": false,
+        "extra": "international"
+      },
+      {
+        "code": "SEQM",
+        "name": "SEQM · Quito — Mariscal Sucre",
+        "sort_order": 36,
+        "is_system": false,
+        "extra": "international"
+      },
+      {
+        "code": "SPZO",
+        "name": "SPZO · Cusco — Alejandro Velasco Astete",
+        "sort_order": 37,
+        "is_system": false,
+        "extra": "international"
+      },
+      {
+        "code": "SBBV",
+        "name": "SBBV · Boa Vista — Atlas Brasil Cantanhede",
+        "sort_order": 38,
+        "is_system": false,
+        "extra": "international"
+      },
+      {
+        "code": "SBEG",
+        "name": "SBEG · Manaus — Eduardo Gomes",
+        "sort_order": 39,
+        "is_system": false,
+        "extra": "international"
       },
       {
         "code": "MDPC",
-        "name": "Punta Cana",
-        "sort_order": 5,
-        "is_system": false
+        "name": "MDPC · Punta Cana",
+        "sort_order": 40,
+        "is_system": false,
+        "extra": "international"
+      },
+      {
+        "code": "MPTO",
+        "name": "MPTO · Panamá — Tocumen",
+        "sort_order": 41,
+        "is_system": false,
+        "extra": "international"
+      },
+      {
+        "code": "MROC",
+        "name": "MROC · Alajuela — Juan Santamaría",
+        "sort_order": 42,
+        "is_system": false,
+        "extra": "international"
       }
     ],
     "locations": [
@@ -707,8 +1161,9 @@
           "type": "date",
           "required": true,
           "width": "half",
-          "sort_order": 1,
-          "role": "accounting_date"
+          "role": "accounting_date",
+          "edit_permission": "operations.instruction",
+          "sort_order": 1
         },
         {
           "key": "control_number",
@@ -716,9 +1171,9 @@
           "type": "text",
           "required": false,
           "width": "half",
-          "sort_order": 2,
+          "help": "Asignado automáticamente por el sistema.",
           "read_only": true,
-          "help": "Asignado automáticamente por el sistema."
+          "sort_order": 2
         },
         {
           "key": "aircraft",
@@ -728,6 +1183,7 @@
           "width": "half",
           "catalog": "aircrafts",
           "role": "aircraft",
+          "edit_permission": "operations.instruction",
           "sort_order": 3
         },
         {
@@ -736,10 +1192,11 @@
           "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 4,
-          "read_only": false,
           "catalog": "aircraft_brands",
-          "role": "aircraft_brand"
+          "role": "aircraft_brand",
+          "read_only": true,
+          "help": "Sale de la matrícula. No se vuelve a escribir.",
+          "sort_order": 4
         },
         {
           "key": "aircraft_model",
@@ -747,11 +1204,23 @@
           "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 5,
-          "read_only": false,
           "catalog": "aircraft_models",
           "role": "aircraft_model",
-          "depends_on": "aircraft_brand"
+          "depends_on": "aircraft_brand",
+          "read_only": true,
+          "help": "Sale de la matrícula. No se vuelve a escribir.",
+          "sort_order": 5
+        },
+        {
+          "key": "regime",
+          "label": "Régimen",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "catalog": "flight_regimes",
+          "help": "Al elegir la matrícula queda el régimen de esa aeronave. Taxi aéreo solo lista las matrículas habilitadas para ese régimen.",
+          "edit_permission": "operations.instruction",
+          "sort_order": 6
         },
         {
           "key": "kind",
@@ -759,17 +1228,9 @@
           "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 6,
-          "catalog": "operation_kinds"
-        },
-        {
-          "key": "scope",
-          "label": "Alcance",
-          "type": "select",
-          "required": false,
-          "width": "half",
-          "sort_order": 7,
-          "catalog": "operation_scopes"
+          "catalog": "operation_kinds",
+          "edit_permission": "operations.instruction",
+          "sort_order": 7
         },
         {
           "key": "service_type",
@@ -777,84 +1238,16 @@
           "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 8,
-          "catalog": "service_types"
-        },
-        {
-          "key": "overnight",
-          "label": "¿Pernocta?",
-          "type": "checkbox",
-          "required": false,
-          "width": "half",
-          "sort_order": 9
-        },
-        {
-          "key": "origin",
-          "label": "Origen",
-          "type": "select",
-          "required": true,
-          "width": "half",
-          "sort_order": 10,
-          "catalog": "airports"
-        },
-        {
-          "key": "destination",
-          "label": "Destino",
-          "type": "select",
-          "required": true,
-          "width": "half",
-          "sort_order": 11,
-          "catalog": "airports"
-        },
-        {
-          "key": "departure_time",
-          "label": "Hora de salida",
-          "type": "time",
-          "required": false,
-          "width": "half",
-          "sort_order": 12
-        },
-        {
-          "key": "return_time",
-          "label": "Retorno estimado",
-          "type": "time",
-          "required": false,
-          "width": "half",
-          "sort_order": 13
-        },
-        {
-          "key": "passengers",
-          "label": "Pasajeros",
-          "type": "integer",
-          "required": false,
-          "width": "half",
-          "sort_order": 14
-        },
-        {
-          "key": "exchange_rate",
-          "label": "Tasa del día (Bs/USD)",
-          "type": "number",
-          "required": false,
-          "width": "half",
-          "sort_order": 15,
-          "role": "exchange_rate",
-          "help": "La propone el sistema (tasa oficial). Puedes escribirla a mano."
-        },
-        {
-          "key": "manifest",
-          "label": "Manifiesto de pasajeros",
-          "type": "file",
-          "required": false,
-          "width": "full",
-          "sort_order": 16
+          "catalog": "service_types",
+          "edit_permission": "operations.instruction",
+          "sort_order": 8
         },
         {
           "key": "service_condition",
           "label": "Condición",
-          "type": "select",
+          "type": "checkbox_group",
           "required": false,
           "width": "half",
-          "sort_order": 17,
           "options": [
             {
               "value": "round_trip",
@@ -869,31 +1262,170 @@
               "label": "Solo buscar"
             },
             {
-              "value": "overnight",
-              "label": "Pernocta"
-            },
-            {
               "value": "stopover",
               "label": "Escala"
+            },
+            {
+              "value": "overnight",
+              "label": "Pernocta"
             }
-          ]
+          ],
+          "edit_permission": "operations.instruction",
+          "sort_order": 9
         },
         {
-          "key": "captain",
-          "label": "Capitán de nave",
+          "key": "origin",
+          "label": "Origen",
+          "type": "select",
+          "required": true,
+          "width": "half",
+          "catalog": "airports",
+          "edit_permission": "operations.instruction",
+          "sort_order": 10
+        },
+        {
+          "key": "destination",
+          "label": "Destino",
+          "type": "select",
+          "required": true,
+          "width": "half",
+          "catalog": "airports",
+          "edit_permission": "operations.instruction",
+          "sort_order": 11
+        },
+        {
+          "key": "departure_time",
+          "label": "Hora estimada de salida",
+          "type": "time",
+          "required": true,
+          "width": "half",
+          "edit_permission": "operations.instruction",
+          "sort_order": 12
+        },
+        {
+          "key": "return_time",
+          "label": "Retorno estimado",
+          "type": "time",
+          "required": false,
+          "width": "half",
+          "edit_permission": "operations.instruction",
+          "sort_order": 13
+        },
+        {
+          "key": "passengers",
+          "label": "Personas",
+          "type": "integer",
+          "required": false,
+          "width": "half",
+          "help": "Personas a bordo, sin la tripulación.",
+          "edit_permission": "operations.instruction",
+          "sort_order": 14
+        },
+        {
+          "key": "cargo_kind",
+          "label": "Qué se transporta",
+          "type": "checkbox_group",
+          "required": false,
+          "width": "full",
+          "options": [
+            {
+              "value": "people",
+              "label": "Personas"
+            },
+            {
+              "value": "things",
+              "label": "Cosas"
+            }
+          ],
+          "edit_permission": "operations.instruction",
+          "sort_order": 15
+        },
+        {
+          "key": "stops",
+          "label": "Escalas",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "help": "Una escala por línea: código OACI y hora estimada. Origen y destino siguen arriba.",
+          "edit_permission": "operations.instruction",
+          "sort_order": 16
+        },
+        {
+          "key": "scope",
+          "label": "Alcance",
           "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 18,
-          "catalog": "users:pilot"
+          "help": "Lo calcula el sistema: si algún punto es internacional, la operación es internacional.",
+          "catalog": "operation_scopes",
+          "read_only": true,
+          "sort_order": 17
         },
         {
-          "key": "flight_time",
-          "label": "Tiempo de vuelo",
-          "type": "text",
+          "key": "catering",
+          "label": "¿Catering o pedido especial?",
+          "type": "checkbox",
           "required": false,
           "width": "half",
+          "edit_permission": "operations.instruction",
+          "sort_order": 18
+        },
+        {
+          "key": "catering_detail",
+          "label": "Detalle del pedido",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "depends_on": "when:catering",
+          "edit_permission": "operations.instruction",
           "sort_order": 19
+        },
+        {
+          "key": "dangerous_goods",
+          "label": "¿Transporta mercancías peligrosas?",
+          "type": "checkbox",
+          "required": false,
+          "width": "half",
+          "help": "Sí o no. Si es sí, adjunta la autorización firmada. No hace falta el inventario.",
+          "edit_permission": "operations.instruction",
+          "sort_order": 20
+        },
+        {
+          "key": "dangerous_goods_file",
+          "label": "Autorización de mercancías peligrosas",
+          "type": "file",
+          "required": false,
+          "width": "full",
+          "depends_on": "when:dangerous_goods",
+          "edit_permission": "operations.instruction",
+          "sort_order": 21
+        },
+        {
+          "key": "person_flags",
+          "label": "Personas a bordo",
+          "type": "checkbox_group",
+          "required": false,
+          "width": "full",
+          "options": [
+            {
+              "value": "minor",
+              "label": "Menor"
+            },
+            {
+              "value": "disability",
+              "label": "Discapacidad"
+            },
+            {
+              "value": "wheelchair",
+              "label": "Silla de ruedas"
+            },
+            {
+              "value": "minor_permit",
+              "label": "Permiso de menor"
+            }
+          ],
+          "edit_permission": "operations.instruction",
+          "sort_order": 22
         },
         {
           "key": "fbo_processed",
@@ -901,7 +1433,8 @@
           "type": "checkbox",
           "required": false,
           "width": "half",
-          "sort_order": 20
+          "edit_permission": "operations.instruction",
+          "sort_order": 24
         },
         {
           "key": "fbo_name",
@@ -909,8 +1442,95 @@
           "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 21,
-          "catalog": "fbos"
+          "catalog": "fbos",
+          "depends_on": "when:fbo_processed",
+          "edit_permission": "operations.instruction",
+          "sort_order": 25
+        },
+        {
+          "key": "fbo_operator",
+          "label": "Nombre del operador de base fija",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "role": null,
+          "edit_permission": null,
+          "sort_order": 26,
+          "read_only": false,
+          "help": null,
+          "options": null,
+          "catalog": null,
+          "view_permission": null,
+          "step_code": "ground",
+          "depends_on": "when:fbo_processed"
+        },
+        {
+          "key": "manifest",
+          "label": "Manifiesto de pasajeros",
+          "type": "file",
+          "required": false,
+          "width": "full",
+          "edit_permission": "operations.instruction",
+          "sort_order": 27
+        },
+        {
+          "key": "passport",
+          "label": "Pasaporte",
+          "type": "file",
+          "required": false,
+          "width": "full",
+          "edit_permission": "operations.instruction",
+          "sort_order": 28
+        },
+        {
+          "key": "observations",
+          "label": "Observaciones",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "edit_permission": "operations.instruction",
+          "sort_order": 29
+        },
+        {
+          "key": "flight_time",
+          "label": "Tiempo de vuelo",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "step_code": "requirements",
+          "sort_order": 30
+        },
+        {
+          "key": "alternate",
+          "label": "Aeródromo de alternativa",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "help": "RAV 135, capítulo D, cuando el vuelo es IFR.",
+          "catalog": "airports",
+          "step_code": "requirements",
+          "sort_order": 31
+        },
+        {
+          "key": "captain",
+          "label": "Capitán de nave",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "catalog": "users:pilot",
+          "step_code": "requirements",
+          "sort_order": 32
+        },
+        {
+          "key": "copilot",
+          "label": "Copiloto",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "help": "Segundo piloto. RAV 135, capítulo E.",
+          "catalog": "users:pilot",
+          "step_code": "requirements",
+          "sort_order": 33
         },
         {
           "key": "dispatcher",
@@ -918,7 +1538,94 @@
           "type": "text",
           "required": false,
           "width": "half",
-          "sort_order": 22
+          "step_code": "requirements",
+          "sort_order": 34
+        },
+        {
+          "key": "schedule",
+          "label": "Clase de operación",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "help": "RAV 119, secciones 119.45 y 119.46.",
+          "options": [
+            {
+              "value": "regular",
+              "label": "Regular"
+            },
+            {
+              "value": "non_regular",
+              "label": "No regular"
+            }
+          ],
+          "step_code": "requirements",
+          "sort_order": 35
+        },
+        {
+          "key": "flight_rules",
+          "label": "Reglas de vuelo",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "help": "RAV 135, capítulo D, y RAV 91.",
+          "options": [
+            {
+              "value": "vfr",
+              "label": "VFR"
+            },
+            {
+              "value": "ifr",
+              "label": "IFR"
+            }
+          ],
+          "step_code": "requirements",
+          "sort_order": 36
+        },
+        {
+          "key": "governing_rav",
+          "label": "Regulación que aplica",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "help": "RAV 119, secciones 119.9 a 119.11. Hasta 19 asientos y 5.700 kg: RAV 135.",
+          "options": [
+            {
+              "value": "rav_135",
+              "label": "RAV 135"
+            },
+            {
+              "value": "rav_121",
+              "label": "RAV 121"
+            },
+            {
+              "value": "rav_125",
+              "label": "RAV 125"
+            },
+            {
+              "value": "rav_91",
+              "label": "RAV 91"
+            }
+          ],
+          "step_code": "requirements",
+          "sort_order": 37
+        },
+        {
+          "key": "actual_departure",
+          "label": "Hora real de salida",
+          "type": "time",
+          "required": false,
+          "width": "half",
+          "step_code": "requirements",
+          "sort_order": 38
+        },
+        {
+          "key": "route_note",
+          "label": "Ruta real si cambió",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "step_code": "requirements",
+          "sort_order": 39
         },
         {
           "key": "fbo_services",
@@ -926,7 +1633,6 @@
           "type": "checkbox_group",
           "required": false,
           "width": "full",
-          "sort_order": 23,
           "options": [
             {
               "value": "flight_plan",
@@ -944,7 +1650,52 @@
               "value": "ground_support",
               "label": "Apoyo en tierra"
             }
-          ]
+          ],
+          "depends_on": "when:fbo_processed",
+          "step_code": "requirements",
+          "sort_order": 40
+        },
+        {
+          "key": "ground_support_services",
+          "label": "Servicios de apoyo en tierra",
+          "type": "checkbox_group",
+          "required": false,
+          "width": "full",
+          "options": [
+            {
+              "value": "towing",
+              "label": "Remolques"
+            },
+            {
+              "value": "fuel",
+              "label": "Abastecimiento de combustible"
+            },
+            {
+              "value": "broker",
+              "label": "Broker"
+            }
+          ],
+          "step_code": "ground",
+          "sort_order": 41
+        },
+        {
+          "key": "tow_count",
+          "label": "Cantidad de remolques",
+          "type": "number",
+          "required": false,
+          "width": "half",
+          "step_code": "ground",
+          "sort_order": 42
+        },
+        {
+          "key": "tow_lines",
+          "label": "Remolques",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "help": "Un remolque por línea: fecha, operador, desde, hasta, costo, hielo y total. El formato del 17-11 anota el hielo en 5 USD. El costo espera el tabulador del proveedor.",
+          "step_code": "ground",
+          "sort_order": 43
         },
         {
           "key": "foreign_support_services",
@@ -952,7 +1703,6 @@
           "type": "checkbox_group",
           "required": false,
           "width": "full",
-          "sort_order": 24,
           "options": [
             {
               "value": "fuel",
@@ -982,37 +1732,19 @@
               "value": "ground_support",
               "label": "Apoyo en tierra"
             }
-          ]
+          ],
+          "depends_on": "when:fbo_processed",
+          "step_code": "ground",
+          "sort_order": 44
         },
         {
-          "key": "ground_support_services",
-          "label": "Servicios de apoyo en tierra",
-          "type": "checkbox_group",
-          "required": false,
-          "width": "full",
-          "sort_order": 25,
-          "options": [
-            {
-              "value": "towing",
-              "label": "Remolques"
-            },
-            {
-              "value": "fuel",
-              "label": "Abastecimiento de combustible"
-            },
-            {
-              "value": "broker",
-              "label": "Broker"
-            }
-          ]
-        },
-        {
-          "key": "tow_count",
-          "label": "Cantidad de remolques",
-          "type": "number",
+          "key": "fuel_requested",
+          "label": "¿Combustible?",
+          "type": "checkbox",
           "required": false,
           "width": "half",
-          "sort_order": 26
+          "step_code": "ground",
+          "sort_order": 45
         },
         {
           "key": "fuel_supplier",
@@ -1020,16 +1752,68 @@
           "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 27,
-          "catalog": "fuel_suppliers"
+          "catalog": "fuel_suppliers",
+          "depends_on": "when:fuel_requested",
+          "step_code": "ground",
+          "sort_order": 46
         },
         {
           "key": "fuel_quantity",
-          "label": "Cantidad de combustible",
+          "label": "Litros",
           "type": "number",
           "required": false,
           "width": "half",
-          "sort_order": 28
+          "help": "Litros. El monto lo manda el broker después; no lo escribas aquí.",
+          "depends_on": "when:fuel_requested",
+          "step_code": "ground",
+          "sort_order": 47
+        },
+        {
+          "key": "fuel_slip",
+          "label": "Número de boleta",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "depends_on": "when:fuel_requested",
+          "step_code": "ground",
+          "sort_order": 48
+        },
+        {
+          "key": "fuel_notes",
+          "label": "Observaciones del combustible",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "role": null,
+          "edit_permission": null,
+          "sort_order": 49,
+          "read_only": false,
+          "help": null,
+          "options": null,
+          "catalog": null,
+          "view_permission": null,
+          "step_code": "ground",
+          "depends_on": "when:fuel_requested"
+        },
+        {
+          "key": "fuel_slip_file",
+          "label": "Vale de combustible",
+          "type": "file",
+          "required": false,
+          "width": "full",
+          "depends_on": "when:fuel_requested",
+          "step_code": "ground",
+          "sort_order": 50
+        },
+        {
+          "key": "avsec_note",
+          "label": "Supervisión de la estación de personas",
+          "type": "textarea",
+          "required": false,
+          "width": "full",
+          "depends_on": "when:fbo_processed",
+          "step_code": "avsec",
+          "sort_order": 51
         },
         {
           "key": "aircraft_reported",
@@ -1037,7 +1821,7 @@
           "type": "checkbox",
           "required": false,
           "width": "half",
-          "sort_order": 29
+          "sort_order": 52
         },
         {
           "key": "aircraft_availability",
@@ -1045,7 +1829,6 @@
           "type": "select",
           "required": false,
           "width": "half",
-          "sort_order": 30,
           "options": [
             {
               "value": "available",
@@ -1055,7 +1838,8 @@
               "value": "unavailable",
               "label": "Indisponible"
             }
-          ]
+          ],
+          "sort_order": 53
         },
         {
           "key": "ata_failure_code",
@@ -1063,7 +1847,7 @@
           "type": "text",
           "required": false,
           "width": "half",
-          "sort_order": 31
+          "sort_order": 54
         },
         {
           "key": "failure_description",
@@ -1071,7 +1855,7 @@
           "type": "textarea",
           "required": false,
           "width": "full",
-          "sort_order": 32
+          "sort_order": 55
         },
         {
           "key": "corrective_measure",
@@ -1079,24 +1863,8 @@
           "type": "textarea",
           "required": false,
           "width": "full",
-          "sort_order": 33,
-          "edit_permission": "tickets.edit.technical_report"
-        },
-        {
-          "key": "observations",
-          "label": "Observaciones",
-          "type": "textarea",
-          "required": false,
-          "width": "full",
-          "sort_order": 34
-        },
-        {
-          "key": "passport",
-          "label": "Pasaporte",
-          "type": "file",
-          "required": false,
-          "width": "full",
-          "sort_order": 35
+          "edit_permission": "tickets.edit.technical_report",
+          "sort_order": 56
         }
       ],
       "statuses": [
@@ -1169,11 +1937,18 @@
           "sort_order": 3
         },
         {
+          "code": "avsec",
+          "name": "Estación de personas",
+          "role_code": "avsec",
+          "required": false,
+          "sort_order": 4
+        },
+        {
           "code": "technical",
           "name": "Reporte técnico",
           "role_code": "pilot",
           "required": true,
-          "sort_order": 4
+          "sort_order": 5
         },
         {
           "code": "sign_captain",
@@ -1181,7 +1956,7 @@
           "role_code": "pilot",
           "required": true,
           "requires_signature": true,
-          "sort_order": 5
+          "sort_order": 6
         },
         {
           "code": "sign_maintenance",
@@ -1189,7 +1964,7 @@
           "role_code": "maintenance",
           "required": true,
           "requires_signature": true,
-          "sort_order": 6
+          "sort_order": 7
         },
         {
           "code": "sign_avsec",
@@ -1197,7 +1972,7 @@
           "role_code": "avsec",
           "required": true,
           "requires_signature": true,
-          "sort_order": 7
+          "sort_order": 8
         },
         {
           "code": "sign_general",
@@ -1205,7 +1980,7 @@
           "role_code": "executive",
           "required": true,
           "requires_signature": true,
-          "sort_order": 8
+          "sort_order": 9
         }
       ]
     },
@@ -1516,6 +2291,27 @@
           "required": false,
           "width": "half",
           "sort_order": 16
+        },
+        {
+          "key": "airworthiness_condition",
+          "step_code": "airworthiness",
+          "label": "Condición de aeronavegabilidad",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "sort_order": 17,
+          "help": "RAV 135, capítulo J. Lo registra mantenimiento.",
+          "edit_permission": "tickets.edit.technical_report",
+          "options": [
+            {
+              "value": "airworthy",
+              "label": "Aeronavegable"
+            },
+            {
+              "value": "not_airworthy",
+              "label": "No aeronavegable"
+            }
+          ]
         }
       ],
       "statuses": [
@@ -1785,6 +2581,42 @@
           "required": false,
           "width": "full",
           "sort_order": 3
+        },
+        {
+          "key": "area",
+          "label": "Lugar",
+          "type": "select",
+          "required": false,
+          "width": "half",
+          "sort_order": 4,
+          "help": "RAV 111. Dónde se detectó la novedad de tierra.",
+          "options": [
+            {
+              "value": "apron",
+              "label": "Plataforma"
+            },
+            {
+              "value": "hangar",
+              "label": "Hangar"
+            },
+            {
+              "value": "manoeuvring",
+              "label": "Área de maniobras"
+            },
+            {
+              "value": "equipment",
+              "label": "Equipo de apoyo en tierra"
+            }
+          ]
+        },
+        {
+          "key": "equipment",
+          "label": "Vehículo o equipo",
+          "type": "text",
+          "required": false,
+          "width": "half",
+          "sort_order": 5,
+          "help": "RAV 111, sección 111.23, si intervino un vehículo o equipo."
         }
       ],
       "statuses": [
@@ -1871,8 +2703,8 @@
       "action": "require_authorization",
       "message": "El importe supera lo habitual para la ruta de esta operación.",
       "route_limits": {
-        "CCS-PZO": 1200,
-        "CCS-SVSA": 900
+        "SVMI-PZO": 1200,
+        "SVMI-SVSA": 900
       }
     },
     {
@@ -1883,6 +2715,24 @@
       "value": "navaid",
       "action": "warn",
       "message": "Sin el pago de radioayuda el INAC no autoriza el vuelo."
+    },
+    {
+      "name": "Más de 19 pasajeros sale de la RAV 135",
+      "type_code": "operation",
+      "field": "passengers",
+      "operator": "gt",
+      "value": "19",
+      "action": "warn",
+      "message": "RAV 119, sección 119.10: más de 19 asientos de pasajeros se opera según la RAV 121."
+    },
+    {
+      "name": "Mercancías peligrosas exigen aprobación",
+      "type_code": "operation",
+      "field": "checkbox",
+      "operator": "eq",
+      "value": "dangerous_goods",
+      "action": "require_authorization",
+      "message": "RAV 135, capítulo L: transportar mercancías peligrosas exige una aprobación específica."
     }
   ]
 }

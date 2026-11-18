@@ -105,8 +105,9 @@ class TestOperationCodes:
             "type_code": "operation",
             "payload": {
                 "date": "2026-08-19",
-                "origin": "CCS",
+                "origin": "SVMI",
                 "destination": "PZO",
+                "departure_time": "08:00",
                 "aircraft": bad,
             },
         }
@@ -132,8 +133,9 @@ class TestOperationCodes:
                 "type_code": "operation",
                 "payload": {
                     "date": "2026-08-19",
-                    "origin": "CCS",
+                    "origin": "SVMI",
                     "destination": "PZO",
+                    "departure_time": "08:00",
                     "aircraft": "YV2323",
                     "control_number": "TVOA N°0000-00",
                 },

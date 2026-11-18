@@ -1,9 +1,12 @@
 # Aeronaves Backend (Axiom Core Tech, cliente Transvalor)
 
 Backend real de operaciones aereas. Empresa unica: sin `company_id`, tenant, scopes, eventos ni billing.
-Fuente de verdad, en orden: `backend-contract/{PLAN_BACKEND,API_CONTRACT}.md` + `seeds.json`
+Fuente de verdad del software, en orden: `backend-contract/{PLAN_BACKEND,API_CONTRACT}.md` + `seeds.json`
 (en `~/Descargas/proyectos/Axiom/aeronaves/`), el simulador del frontend
 (`frontend/src/shared/api/mock/`) y este repo.
+Norma de la operacion: `docs/normativa/NORMATIVA.md` y las cuatro gacetas de esa carpeta
+(RAV 119, 135, 91 y 111). Un flujo de vuelo, tripulacion, mantenimiento, pasajeros o
+plataforma se contrasta con esa norma antes de cambiar formulario o pasos.
 
 Idioma: codigo, identificadores y comentarios en ingles; mensajes al usuario en espanol.
 Sin emojis. Sin comentarios decorativos. No hacer `git add/commit/push`: Jerson commitea.

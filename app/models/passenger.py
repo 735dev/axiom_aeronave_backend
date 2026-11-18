@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import UUID_TYPE, Base, IdMixin, TimestampMixin
@@ -21,6 +21,10 @@ class TicketPassenger(IdMixin, TimestampMixin, Base):
     full_name: Mapped[str] = mapped_column(String(200), nullable=False)
     document: Mapped[str] = mapped_column(String(40), nullable=False)
     nationality: Mapped[str | None] = mapped_column(String(60))
+    is_minor: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    has_disability: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    needs_wheelchair: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    has_minor_permit: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Reference to the stored passport image (a support of the same operation). Only the
     # reference lives here: the file itself belongs to the attachments module.
     passport_ref: Mapped[UUID | None] = mapped_column(UUID_TYPE)

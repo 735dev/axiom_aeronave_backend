@@ -59,8 +59,8 @@ class TestFiring:
         )
 
     async def test_the_rule_uses_the_base_amount_not_the_original(self, admin):
-        op = await make_operation(admin, exchange_rate=40)
-        t = await make_expense(admin, op, currency="VES", amount=40000)
+        op = await make_operation(admin)
+        t = await make_expense(admin, op, currency="VES", amount=60000)
         assert any(h["rule_name"].startswith("Gasto mayor") for h in t["rule_hits"])
         small = await make_expense(admin, op, currency="VES", amount=400)
         assert not any(h["rule_name"].startswith("Gasto mayor") for h in small["rule_hits"])
@@ -82,6 +82,19 @@ class TestFiring:
     async def test_rules_only_apply_to_their_type(self, admin):
         op = await make_operation(admin)
         assert op["rule_hits"] == []
+
+    async def test_more_than_19_passenger_seats_warns(self, admin):
+        over = await make_operation(admin, passengers=20)
+        assert any(h["rule_name"].startswith("Más de 19 pasajeros") for h in over["rule_hits"])
+        within = await make_operation(admin, passengers=8)
+        assert not any(h["rule_name"].startswith("Más de 19 pasajeros") for h in within["rule_hits"])
+
+    async def test_dangerous_goods_require_authorization(self, admin):
+        op = await make_operation(admin, dangerous_goods=True)
+        assert any(
+            h["rule_name"].startswith("Mercancías peligrosas") for h in op["rule_hits"]
+        )
+        assert any(h["action"] == "require_authorization" for h in op["rule_hits"])
 
     async def test_firing_is_audited_with_the_reason(self, admin):
         t = await big(admin, 700)
@@ -160,7 +173,7 @@ class TestRouteRule:
     async def test_the_limit_is_read_from_the_operation_route(self, admin):
         op = await make_operation(admin)
         route_rule = await rule_named(admin, "fuera de rango")
-        assert route_rule["route_limits"]["CCS-PZO"] == 1200
+        assert route_rule["route_limits"]["SVMI-PZO"] == 1200
 
     async def test_changing_the_route_limits(self, admin):
         rule = await rule_named(admin, "fuera de rango")

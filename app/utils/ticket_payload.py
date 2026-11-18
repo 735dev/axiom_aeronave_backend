@@ -59,6 +59,20 @@ def _is_blank(value: Any) -> bool:
     return value is None or (isinstance(value, str) and value.strip() == "")
 
 
+def _when_hidden(
+    definition: Any, incoming: Mapping[str, Any], existing: Mapping[str, Any] | None
+) -> bool:
+    """A `when:<checkbox>` field is hidden while that box is off, so it is not required."""
+    raw = str(getattr(definition, "depends_on", None) or "")
+    if not raw.startswith("when:"):
+        return False
+    parent = raw[len("when:") :]
+    value = incoming[parent] if parent in incoming else (existing or {}).get(parent)
+    if isinstance(value, str):
+        return value.strip() == ""
+    return not bool(value)
+
+
 def _normalize(
     definition: Any, value: Any, catalogs: Mapping[str, set[str]]
 ) -> tuple[Any, str | None]:
@@ -173,6 +187,16 @@ def validate_payload(
             result.errors[key] = UNKNOWN_MESSAGE
             continue
         cleared = _is_blank(value) and definition.type != FieldType.CHECKBOX
+        hidden = _when_hidden(definition, incoming, existing)
+        if cleared and hidden:
+            if key not in base:
+                continue
+            if definition.edit_permission and definition.edit_permission not in held:
+                result.forbidden[key] = definition.label
+            else:
+                base.pop(key)
+                result.changed.add(key)
+            continue
         if cleared:
             if definition.read_only and not creating and key in base:
                 result.errors[key] = READ_ONLY_MESSAGE
@@ -206,6 +230,8 @@ def validate_payload(
 
     if creating:
         for definition in definitions.values():
+            if _when_hidden(definition, incoming, existing):
+                continue
             if definition.required and not definition.read_only and definition.key not in base:
                 result.errors.setdefault(definition.key, REQUIRED_MESSAGE)
     return result

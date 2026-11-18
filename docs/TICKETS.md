@@ -1,5 +1,7 @@
 # Tickets: modelo, reglas y extension
 
+La norma aeronáutica de este modelo está en `docs/normativa/NORMATIVA.md` (RAV 119, 135, 91 y 111).
+
 Todo el trabajo (operaciones, gastos, reportes, permisos, novedades) es un ticket de un **tipo**. El tipo define el
 formulario, los estados, los pasos de aprobacion y las relaciones. Fuente de verdad del comportamiento: el simulador
 `frontend/src/shared/api/mock/` y `backend-contract/API_CONTRACT.md`.

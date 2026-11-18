@@ -21,6 +21,10 @@ class PassengerBody(RequestModel):
     document: str = Field(min_length=1, max_length=PASSENGER_DOCUMENT_MAX)
     nationality: OptionalText = Field(default=None, max_length=PASSENGER_NATIONALITY_MAX)
     passport_file_id: UUID | None = None
+    is_minor: bool = False
+    has_disability: bool = False
+    needs_wheelchair: bool = False
+    has_minor_permit: bool = False
 
 
 class ManifestBody(RequestModel):
@@ -33,6 +37,10 @@ class PassengerRead(BaseModel):
     document: str
     nationality: str | None = None
     passport_file_id: UUID | None = None
+    is_minor: bool = False
+    has_disability: bool = False
+    needs_wheelchair: bool = False
+    has_minor_permit: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

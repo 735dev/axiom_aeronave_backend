@@ -26,6 +26,10 @@ def _manifest(rows) -> list[PassengerRead]:
             document=r.document,
             nationality=r.nationality,
             passport_file_id=r.passport_ref,
+            is_minor=r.is_minor,
+            has_disability=r.has_disability,
+            needs_wheelchair=r.needs_wheelchair,
+            has_minor_permit=r.has_minor_permit,
         )
         for r in rows
     ]

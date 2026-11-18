@@ -33,7 +33,15 @@ class TestLogin:
     async def test_pilot_permissions_match_seed(self, anon):
         body = (await anon.login("piloto@transvalor.com")).json()
         assert sorted(body["permissions"]) == sorted(
-            ["tickets.view", "tickets.create", "tickets.edit", "tickets.sign", "notifications.view"]
+            [
+                "tickets.view",
+                "tickets.create",
+                "tickets.edit",
+                "tickets.sign",
+                "notifications.view",
+                "operations.crew",
+                "operations.ground",
+            ]
         )
 
     async def test_superuser_has_whole_catalog(self, anon):

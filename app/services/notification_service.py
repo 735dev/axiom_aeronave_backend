@@ -16,8 +16,9 @@ from app.config.notifications import (
     BODY_MAX,
     CREW_ROLES,
     NO_OPERATION,
-    NO_ROLE,
     ROLE_ADMIN,
+    ROLE_AVSEC,
+    ROLE_GROUND,
     ROLE_MAINTENANCE,
     ROLE_OPERATIONS,
     ROLE_PILOT,
@@ -33,6 +34,26 @@ from app.repositories.role import RoleRepository
 from app.services.base import ProjectService
 
 logger = logging.getLogger(__name__)
+
+
+def operation_created_body(ticket: Ticket) -> str:
+    """Code, title and the route pieces that the operation actually has."""
+    payload = ticket.payload or {}
+    parts = [piece for piece in (ticket.code, ticket.title) if piece]
+    when_parts = [str(payload.get(key) or "").strip() for key in ("date", "departure_time")]
+    when = " ".join(text for text in when_parts if text)
+    if when:
+        parts.append(when)
+    aircraft = str(payload.get("aircraft") or "").strip()
+    if aircraft:
+        parts.append(aircraft)
+    origin = str(payload.get("origin") or "").strip()
+    destination = str(payload.get("destination") or "").strip()
+    if origin and destination:
+        parts.append(f"{origin} → {destination}")
+    elif origin or destination:
+        parts.append(origin or destination)
+    return " · ".join(parts)
 
 
 def _unique(ids: list[UUID | None]) -> list[UUID]:
@@ -157,14 +178,14 @@ class NotificationService(ProjectService[Notification]):
         roles = [r for r in _unique([ticket.assigned_role_id]) if r not in covered]
         users = _unique([ticket.assigned_user_id])
         if ticket.type.is_root:
-            # The pilot fills the flight log of every operation. That notice is about the
-            # operation, not about the empty technical report the system opens beside it.
-            pilot = await self._role_id(ROLE_PILOT)
-            if pilot is not None and pilot not in covered and pilot not in roles:
-                roles.append(pilot)
+            # The same notice reaches whoever works the operation: the assignee, the pilot,
+            # ground, the passenger desk and administration.
+            for code in (ROLE_PILOT, ROLE_GROUND, ROLE_AVSEC, ROLE_ADMIN):
+                role_id = await self._role_id(code)
+                if role_id is not None and role_id not in covered and role_id not in roles:
+                    roles.append(role_id)
             title = "Nueva operación asignada"
-            role = ticket.assigned_role_name or NO_ROLE
-            body = f"{ticket.code} · {ticket.title} · asignada a {role}"
+            body = operation_created_body(ticket)
             kind = NotificationKind.OPERATION_CREATED
         else:
             title = "Ticket asignado"

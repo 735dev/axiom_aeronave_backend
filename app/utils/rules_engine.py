@@ -37,6 +37,7 @@ class Facts:
     attachments: int
     concept: str | None
     route: str | None
+    payload: Mapping[str, Any] | None = None
 
 
 def route_of(origin: Any, destination: Any) -> str | None:
@@ -69,6 +70,17 @@ def fires(rule: RuleLike, facts: Facts) -> bool:
         limits = rule.route_limits or {}
         limit = to_decimal(limits.get(facts.route)) if facts.route else None
         return limit is not None and facts.amount_base is not None and facts.amount_base > limit
+    payload = facts.payload or {}
+    if rule.field == RuleField.PASSENGERS:
+        # Section 119.10 limits 19 seats only for RAV 135. A declared RAV 121 or 125
+        # operation is outside that limit, so the warning does not apply.
+        regime = str(payload.get("governing_rav") or "")
+        if regime not in ("", "rav_135"):
+            return False
+        return _compare(rule.operator, to_decimal(payload.get("passengers")), rule.value)
+    if rule.field == RuleField.CHECKBOX:
+        # The value is the checkbox key. It fires only when that box is checked.
+        return bool(rule.value) and payload.get(rule.value) is True
     if rule.field == RuleField.AMOUNT_BASE:
         actual: Decimal | str | None = facts.amount_base
     elif rule.field == RuleField.ATTACHMENTS:

@@ -8,7 +8,14 @@ import random
 
 from tests.e2e.attachments_support import child_of
 from tests.e2e.conftest import API
-from tests.e2e.tickets_support import make_operation, ticket_url
+from tests.e2e.tickets_support import make_operation, post_expense, ticket_url
+
+
+class TestOperationsOpensOnlyOperations:
+    async def test_it_creates_an_operation_and_not_an_expense(self, ops):
+        op = await make_operation(ops)
+        refused = await post_expense(ops, op)
+        assert refused.status_code == 403
 
 
 class TestMaintenanceAnswersTechnicalReports:
@@ -21,7 +28,7 @@ class TestMaintenanceAnswersTechnicalReports:
         self, maintenance, pilot, ops
     ):
         op = await make_operation(ops)
-        report = await child_of(ops, op, "technical_report")
+        report = await child_of(pilot, op, "technical_report")
         answer = {"payload": {"corrective_action": "Cambio de filtro"}}
         refused = await pilot.patch(ticket_url(report), json=answer)
         assert refused.status_code == 403

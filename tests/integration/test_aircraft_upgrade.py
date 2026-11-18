@@ -99,7 +99,7 @@ async def test_a_fresh_database_already_has_the_dropdowns(scratch):
         "aircraft_models",
         "aircraft_model",
         "aircraft_brand",
-        False,
+        True,
     )
     assert ("aircrafts", "YV2323", "king_air_200") in state["items"]
 
@@ -127,7 +127,7 @@ async def test_the_script_upgrades_an_old_database_and_is_idempotent(scratch):
         "aircraft_brands",
         "aircraft_brand",
         None,
-        False,
+        True,
     )
     assert by_key["aircraft_model"][4] == "aircraft_brand"
     assert ("aircraft_brands", "beechcraft", None) in upgraded["items"]

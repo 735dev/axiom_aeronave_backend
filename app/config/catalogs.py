@@ -26,11 +26,11 @@ CATALOG_DEFINITIONS = (
     ),
     CatalogDefinition("operation_scopes", "Alcances", "Nacional o internacional"),
     CatalogDefinition(
-        "service_types", "Tipos de servicio", "Clase de servicio que se presta en la operación"
+        "service_types",
+        "Tipos de servicio",
+        "Clases de la RAV 119: pasajeros, carga, correo, a demanda, pacientes y valores",
     ),
-    CatalogDefinition(
-        "aircraft_statuses", "Estados de aeronave", "Resultado posible de un reporte técnico"
-    ),
+    CatalogDefinition("aircraft_statuses", "Estados de aeronave", "Condición de la aeronave"),
     CatalogDefinition("aircraft_brands", "Marcas de aeronave", "Fabricantes de las aeronaves"),
     CatalogDefinition(
         "aircraft_models",
@@ -39,10 +39,24 @@ CATALOG_DEFINITIONS = (
     ),
     CatalogDefinition(
         "aircrafts",
-        "Aeronaves",
-        "Flota registrada, con matrícula y modelo (el campo extra lleva el código del modelo)",
+        "Descripción de la aeronave",
+        "Una ficha: marca, modelo, matrícula, serie y régimen",
     ),
-    CatalogDefinition("airports", "Aeropuertos", "Códigos y nombres usados en las rutas"),
+    CatalogDefinition(
+        "flight_regimes",
+        "Régimen de vuelo",
+        "Aviación privada (RAV 91) o taxi aéreo (RAV 135)",
+    ),
+    CatalogDefinition(
+        "aircraft_sheets",
+        "Ficha de aeronave",
+        "Una ficha por matrícula: régimen, serie y condición",
+    ),
+    CatalogDefinition(
+        "airports",
+        "Aeropuertos",
+        "Cada aeropuerto es nacional o internacional. El alcance del vuelo sale de la ruta",
+    ),
     CatalogDefinition("fbos", "FBO", "Operadores de apoyo en tierra (FBO) con los que se trabaja"),
     CatalogDefinition(
         "fuel_suppliers",

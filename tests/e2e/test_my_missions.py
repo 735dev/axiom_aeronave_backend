@@ -36,8 +36,9 @@ async def op_for(admin, title: str | None = None, **body):
             "title": title or f"Misión {token()}",
             "payload": {
                 "date": "2026-08-19",
-                "origin": "CCS",
+                "origin": "SVMI",
                 "destination": "PZO",
+                "departure_time": "08:00",
                 "aircraft": "YV2323",
             },
             **body,
@@ -130,8 +131,9 @@ class TestOnePersonAssignment:
                 "assigned_user_id": str(uuid.uuid4()),
                 "payload": {
                     "date": "2026-08-19",
-                    "origin": "CCS",
+                    "origin": "SVMI",
                     "destination": "PZO",
+                    "departure_time": "08:00",
                     "aircraft": "YV2323",
                 },
             },

@@ -8,9 +8,10 @@ from tests.e2e.conftest import API, Api
 
 OPERATION = {
     "date": "2026-08-19",
-    "origin": "CCS",
+    "origin": "SVMI",
     "destination": "PZO",
     "aircraft": "YV2323",
+    "departure_time": "08:00",
 }
 EXPENSE = {"concept": "fuel", "amount": 100, "currency": "USD"}
 TICKETS = f"{API}/tickets/"

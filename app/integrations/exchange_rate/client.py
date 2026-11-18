@@ -25,7 +25,10 @@ logger = logging.getLogger(__name__)
 MIN_RATE = 1.0
 MAX_RATE = 1_000_000.0
 FAKE_RATE = 100.0
+#: Bolivars per euro in fake mode. Real mode never substitutes this number.
+FAKE_EUR_RATE = 110.0
 SOURCE = "oficial"
+SUPPORTED = frozenset({"USD", "EUR"})
 
 
 class ExchangeRateUnavailable(Exception):
@@ -40,13 +43,13 @@ class ExchangeRate:
     fetched_at: datetime
 
 
-_cache: ExchangeRate | None = None
-_cache_expires = 0.0
+_cache: dict[str, ExchangeRate] = {}
+_cache_expires: dict[str, float] = {}
 
 
 def clear_cache() -> None:
-    global _cache, _cache_expires
-    _cache, _cache_expires = None, 0.0
+    _cache.clear()
+    _cache_expires.clear()
 
 
 def _parse(payload: Any, now: datetime) -> ExchangeRate:
@@ -69,30 +72,39 @@ def _parse(payload: Any, now: datetime) -> ExchangeRate:
     return ExchangeRate(round(float(value), 4), SOURCE, effective_date, now)
 
 
-async def get_exchange_rate(settings: Settings) -> ExchangeRate:
-    global _cache, _cache_expires
+async def get_exchange_rate(settings: Settings, currency: str = "USD") -> ExchangeRate:
+    """Official bolivars per one unit of `currency` (`USD` or `EUR`).
+
+    Callers that pass only the settings keep reading the dollar quote.
+    """
+    code = (currency or "USD").strip().upper()
+    if code not in SUPPORTED:
+        raise ExchangeRateUnavailable("unsupported currency")
     mode = settings.EXCHANGE_RATE_MODE.lower()
     now = datetime.now(timezone.utc)
     if mode == "fake":
-        return ExchangeRate(FAKE_RATE, SOURCE, now.date().isoformat(), now)
+        rate = FAKE_RATE if code == "USD" else FAKE_EUR_RATE
+        return ExchangeRate(rate, SOURCE, now.date().isoformat(), now)
     if mode != "real":
         raise ExchangeRateUnavailable("exchange rate is switched off")
 
-    if _cache is not None and time.monotonic() < _cache_expires:
-        return _cache
+    cached = _cache.get(code)
+    if cached is not None and time.monotonic() < _cache_expires.get(code, 0.0):
+        return cached
+    url = settings.EXCHANGE_RATE_URL if code == "USD" else settings.EXCHANGE_RATE_EUR_URL
     try:
         async with httpx.AsyncClient(
             timeout=settings.EXCHANGE_RATE_TIMEOUT_SECONDS, follow_redirects=False
         ) as client:
-            response = await client.get(settings.EXCHANGE_RATE_URL)
+            response = await client.get(url)
             response.raise_for_status()
             found = _parse(response.json(), now)
     except ExchangeRateUnavailable:
-        logger.warning("exchange_rate_rejected")
+        logger.warning("exchange_rate_rejected currency=%s", code)
         raise
     except (httpx.HTTPError, ValueError) as exc:
-        logger.warning("exchange_rate_unavailable error=%s", type(exc).__name__)
+        logger.warning("exchange_rate_unavailable currency=%s error=%s", code, type(exc).__name__)
         raise ExchangeRateUnavailable("source did not answer") from exc
-    _cache = found
-    _cache_expires = time.monotonic() + settings.EXCHANGE_RATE_CACHE_SECONDS
+    _cache[code] = found
+    _cache_expires[code] = time.monotonic() + settings.EXCHANGE_RATE_CACHE_SECONDS
     return found

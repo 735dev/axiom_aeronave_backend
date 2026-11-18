@@ -112,3 +112,51 @@ async def test_off_never_calls_out(monkeypatch):
 def test_fake_and_http_urls_are_refused_in_production_settings():
     bad = Settings(JWT_SECRET="x" * 40, EXCHANGE_RATE_URL="http://example.com")
     assert any("EXCHANGE_RATE_URL" in i for i in bad.security_issues())
+    euro = Settings(JWT_SECRET="x" * 40, EXCHANGE_RATE_EUR_URL="http://example.com")
+    assert any("EXCHANGE_RATE_EUR_URL" in i for i in euro.security_issues())
+
+
+async def test_fake_mode_quotes_dollars_and_euros_apart():
+    fake = Settings(JWT_SECRET="x" * 40, EXCHANGE_RATE_MODE="fake")
+    assert (await get_exchange_rate(fake)).rate == 100
+    assert (await get_exchange_rate(fake, "EUR")).rate == 110
+
+
+async def test_each_currency_has_its_own_cache(monkeypatch):
+    calls = []
+
+    def handler(request):
+        calls.append(str(request.url))
+        rate = 40 if "dolares" in str(request.url) else 50
+        return httpx.Response(200, json={**GOOD, "promedio": rate})
+
+    serve(monkeypatch, handler)
+    usd = await get_exchange_rate(settings(EXCHANGE_RATE_URL="https://example.test/dolares"))
+    eur = await get_exchange_rate(
+        settings(EXCHANGE_RATE_EUR_URL="https://example.test/euros"), "EUR"
+    )
+    await get_exchange_rate(settings(EXCHANGE_RATE_URL="https://example.test/dolares"))
+    await get_exchange_rate(settings(EXCHANGE_RATE_EUR_URL="https://example.test/euros"), "EUR")
+    assert usd.rate == 40 and eur.rate == 50
+    assert len(calls) == 2
+
+
+async def test_clear_cache_forgets_both_currencies(monkeypatch):
+    calls = []
+
+    def handler(request):
+        calls.append(str(request.url))
+        return httpx.Response(200, json=GOOD)
+
+    serve(monkeypatch, handler)
+    await get_exchange_rate(settings())
+    await get_exchange_rate(settings(), "EUR")
+    client.clear_cache()
+    await get_exchange_rate(settings())
+    await get_exchange_rate(settings(), "EUR")
+    assert len(calls) == 4
+
+
+async def test_an_unsupported_currency_is_unavailable():
+    with pytest.raises(ExchangeRateUnavailable):
+        await get_exchange_rate(settings(), "GBP")

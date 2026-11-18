@@ -120,7 +120,7 @@ class TicketTypeField(IdMixin, Base):
     catalog: Mapped[str | None] = mapped_column(String(40))
     read_only: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     role: Mapped[str | None] = mapped_column(String(30))
-    # Key of another select of the same type whose chosen code filters this one's options.
+    # Select key (filters options) or "when:<checkbox>" (show this field only while that box is on).
     depends_on: Mapped[str | None] = mapped_column(String(60))
     view_permission: Mapped[str | None] = mapped_column(String(120))
     edit_permission: Mapped[str | None] = mapped_column(String(120))

@@ -91,6 +91,10 @@ class RuleField(StrEnum):
     ATTACHMENTS = "attachments"
     CONCEPT = "concept"
     AMOUNT_VS_ROUTE = "amount_vs_route"
+    #: Passenger seats on the operation, compared as a number (RAV 119.10).
+    PASSENGERS = "passengers"
+    #: A checkbox on the same ticket. `value` is the field key; it fires when that box is checked.
+    CHECKBOX = "checkbox"
 
 
 class RuleOperator(StrEnum):
@@ -112,6 +116,8 @@ RULE_FIELD_OPERATORS: dict[RuleField, frozenset[RuleOperator]] = {
     RuleField.ATTACHMENTS: frozenset({RuleOperator.MISSING}),
     RuleField.CONCEPT: frozenset({RuleOperator.EQ}),
     RuleField.AMOUNT_VS_ROUTE: frozenset({RuleOperator.GT}),
+    RuleField.PASSENGERS: frozenset({RuleOperator.GT, RuleOperator.LT, RuleOperator.EQ}),
+    RuleField.CHECKBOX: frozenset({RuleOperator.EQ}),
 }
 
 

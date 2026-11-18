@@ -230,6 +230,11 @@ PERMISSION_CODES = {
     "reconciliation.close",
     "audit.view",
     "audit.export",
+    "operations.clearance",
+    "operations.instruction",
+    "operations.crew",
+    "operations.ground",
+    "operations.avsec",
 }
 
 SEEDED_TYPE_CODES = ("operation", "expense", "technical_report", "inac_permit", "hangar_incident")

@@ -65,6 +65,16 @@ def to_decimal(value: Any) -> Decimal | None:
     return number if number.is_finite() else None
 
 
+def eur_per_usd(bs_per_usd: Decimal, bs_per_eur: Decimal) -> Decimal:
+    """How many euros buy one dollar, from the two official bolivar quotes.
+
+    `amount_eur / eur_per_usd` is the same dollars as `amount_eur * bs_per_eur / bs_per_usd`.
+    """
+    if bs_per_usd <= 0 or bs_per_eur <= 0:
+        raise ValueError("rates must be positive")
+    return bs_per_usd / bs_per_eur
+
+
 def valid_amount(value: Any) -> Decimal | None:
     """An amount the system accepts: finite, non-negative and below the ceiling."""
     number = to_decimal(value)
@@ -134,7 +144,7 @@ def resolve_money(
         return MoneyResult(
             error=(
                 f"Falta la tasa del día para convertir {code} a {BASE_CURRENCY}. "
-                "Cárgala en la operación o en el gasto."
+                "No se inventa una tasa."
             )
         )
     return MoneyResult(

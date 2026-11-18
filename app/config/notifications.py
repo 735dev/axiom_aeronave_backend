@@ -13,6 +13,7 @@ class NotificationKind(StrEnum):
     TECHNICAL_REPORT = "technical_report"
     RECEIPT_VALIDATION = "receipt_validation"
     OPERATION_CLOSED = "operation_closed"
+    AIRCRAFT_AVAILABLE = "aircraft_available"
 
 
 #: Two equal notices about the same ticket inside this window are one notice.
@@ -26,6 +27,8 @@ ROLE_MAINTENANCE = "maintenance"
 ROLE_ADMIN = "admin"
 ROLE_PILOT = "pilot"
 ROLE_GROUND = "ground"
+ROLE_AVSEC = "avsec"
+ROLE_EXECUTIVE = "executive"
 CREW_ROLES = (ROLE_PILOT, ROLE_GROUND)
 
 # Ticket type codes the events react to.

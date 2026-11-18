@@ -53,6 +53,29 @@ class Totals:
     by_concept: list[ConceptTotal] = field(default_factory=list)
 
 
+@dataclass
+class CountRow:
+    key: str
+    label: str
+    count: int = 0
+
+
+@dataclass
+class Activity:
+    """Counts of tickets that are not money: open and closed stay apart, and the
+    breakdowns say where the count comes from."""
+
+    total: int = 0
+    open_count: int = 0
+    closed_count: int = 0
+    by_aircraft: list[CountRow] = field(default_factory=list)
+    by_status: list[CountRow] = field(default_factory=list)
+    by_type: list[CountRow] = field(default_factory=list)
+
+
+NO_AIRCRAFT = "Sin aeronave"
+
+
 class TicketAnalyticsRepository(TicketRepository):
     def _filtered_ids(
         self,
@@ -131,6 +154,107 @@ class TicketAnalyticsRepository(TicketRepository):
         ]
         result.by_concept = await self._by_concept(ids)
         return result
+
+    async def activity(
+        self,
+        filters: dict[str, Any] | None = None,
+        search: str | None = None,
+        search_fields: list[str] | None = None,
+        scoped: bool = True,
+    ) -> Activity:
+        """Same rows the listing would show, counted instead of summed.
+
+        A ticket without an amount still counts. Open means the status is not final;
+        closed means it is, including a cancellation, which stays visible in `by_status`."""
+        ids = self._filtered_ids(filters, search, search_fields, scoped)
+        base = Ticket.id.in_(ids)
+        result = Activity()
+
+        bags = await self.session.execute(
+            select(TicketTypeStatus.is_final, func.count(Ticket.id))
+            .join(TicketTypeStatus, Ticket.status_id == TicketTypeStatus.id)
+            .where(base)
+            .group_by(TicketTypeStatus.is_final)
+        )
+        for final, count in bags.all():
+            if final:
+                result.closed_count = int(count)
+            else:
+                result.open_count = int(count)
+        result.total = result.open_count + result.closed_count
+
+        status_rows = (
+            await self.session.execute(
+                select(
+                    TicketType.code,
+                    TicketType.name,
+                    TicketTypeStatus.code,
+                    TicketTypeStatus.name,
+                    TicketTypeStatus.sort_order,
+                    func.count(Ticket.id),
+                )
+                .join(TicketType, Ticket.type_id == TicketType.id)
+                .join(TicketTypeStatus, Ticket.status_id == TicketTypeStatus.id)
+                .where(base)
+                .group_by(
+                    TicketType.code,
+                    TicketType.name,
+                    TicketTypeStatus.code,
+                    TicketTypeStatus.name,
+                    TicketTypeStatus.sort_order,
+                )
+                .order_by(TicketType.name, TicketTypeStatus.sort_order)
+            )
+        ).all()
+        several_types = len({row[0] for row in status_rows}) > 1
+        result.by_status = [
+            CountRow(
+                f"{type_code}:{status_code}",
+                f"{type_name} · {status_name}" if several_types else status_name,
+                int(count),
+            )
+            for type_code, type_name, status_code, status_name, _order, count in status_rows
+        ]
+
+        type_rows = (
+            await self.session.execute(
+                select(TicketType.code, TicketType.name, func.count(Ticket.id))
+                .join(TicketType, Ticket.type_id == TicketType.id)
+                .where(base)
+                .group_by(TicketType.code, TicketType.name)
+                .order_by(func.count(Ticket.id).desc(), TicketType.name)
+            )
+        ).all()
+        result.by_type = [CountRow(code, name, int(count)) for code, name, count in type_rows]
+
+        aircraft_key = func.coalesce(Ticket.aircraft_code, "")
+        aircraft_rows = (
+            await self.session.execute(
+                select(aircraft_key, func.count(Ticket.id))
+                .where(base)
+                .group_by(aircraft_key)
+                .order_by(func.count(Ticket.id).desc(), aircraft_key)
+            )
+        ).all()
+        codes = {code for code, _count in aircraft_rows if code}
+        names = await self._catalog_names({"aircrafts": codes}) if codes else {}
+        result.by_aircraft = [
+            CountRow(
+                code or "_none",
+                self._aircraft_label(code, names.get(("aircrafts", code))),
+                int(count),
+            )
+            for code, count in aircraft_rows
+        ]
+        return result
+
+    @staticmethod
+    def _aircraft_label(code: str, name: str | None) -> str:
+        if not code:
+            return NO_AIRCRAFT
+        if name and name != code:
+            return f"{code} · {name}"
+        return code
 
     async def _by_concept(self, ids: Select) -> list[ConceptTotal]:
         item_fields = {

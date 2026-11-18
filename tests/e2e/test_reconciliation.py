@@ -100,7 +100,7 @@ class TestDetection:
 
     async def test_a_different_currency_is_a_currency_mismatch(self, admin):
         period, day = fresh_month()
-        op = await make_operation(admin, exchange_rate=36.5)
+        op = await make_operation(admin)
         expense = await dated_expense(admin, op, day)
         await validate_support(admin, expense, 100, "USD")
         assert (await patch(admin, expense, payload={"currency": "VES"})).status_code == 200
@@ -177,10 +177,10 @@ class TestDetection:
 
     async def test_foreign_currency_rows_report_the_frozen_base_amount(self, admin):
         period, day = fresh_month()
-        op = await make_operation(admin, exchange_rate=50)
+        op = await make_operation(admin)
         await dated_expense(admin, op, day, 5000, currency="VES")
         row = (await report(admin, period))["rows"][0]
-        assert row["amount"] == 5000 and row["currency"] == "VES" and row["amount_base"] == 100
+        assert row["amount"] == 5000 and row["currency"] == "VES" and row["amount_base"] == 50
 
     async def test_the_totals_add_up_across_states(self, admin):
         period, day = fresh_month()

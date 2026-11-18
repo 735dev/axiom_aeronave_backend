@@ -1,7 +1,7 @@
 """`python -m app.scripts.apply_operation_form_fixes` upgrades an EXISTING database.
 
 A scratch database is built with the project's own migration and seed, taken back to the
-state before the change (passengers as a plain number, exchange rate without a role) and the script runs as a real
+state before the change (passengers as a plain number) and the script runs as a real
 process, twice. The shared throw-away database is not touched.
 """
 
@@ -21,7 +21,7 @@ SCRATCH_URL = f"{TEST_DB_URL.rsplit('/', 1)[0]}/{SCRATCH}"
 FIELD_SQL = (
     "SELECT f.key, f.type, f.role, f.catalog, f.sort_order FROM ticket_type_field f "
     "JOIN ticket_type t ON t.id = f.type_id WHERE t.code = 'operation' "
-    "AND f.key IN ('passengers', 'exchange_rate', 'captain', 'fbo_name', 'fuel_supplier') ORDER BY f.key"
+    "AND f.key IN ('passengers', 'captain', 'fbo_name', 'fuel_supplier') ORDER BY f.key"
 )
 
 
@@ -57,9 +57,6 @@ async def revert(conn) -> None:
         f"UPDATE ticket_type_field SET type = 'number' WHERE key = 'passengers' {where}"
     )
     await conn.execute(
-        f"UPDATE ticket_type_field SET role = NULL WHERE key = 'exchange_rate' {where}"
-    )
-    await conn.execute(
         "UPDATE ticket_type_field SET type = 'text', catalog = NULL "
         f"WHERE key IN ('captain', 'fbo_name', 'fuel_supplier') {where}"
     )
@@ -71,14 +68,12 @@ def shape(rows) -> dict:
 
 NEW = {
     "captain": ("select", None, "users:pilot"),
-    "exchange_rate": ("number", "exchange_rate", None),
     "fbo_name": ("select", None, "fbos"),
     "fuel_supplier": ("select", None, "fuel_suppliers"),
     "passengers": ("integer", None, None),
 }
 OLD = {
     "captain": ("text", None, None),
-    "exchange_rate": ("number", None, None),
     "fbo_name": ("text", None, None),
     "fuel_supplier": ("text", None, None),
     "passengers": ("number", None, None),

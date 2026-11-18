@@ -44,14 +44,11 @@ class TestPassengers:
 
 
 class TestOtherNumbers:
-    async def test_a_negative_exchange_rate_is_refused(self, admin):
-        r = await create(admin, exchange_rate=-5)
-        assert r.status_code == 422, r.text
-        assert "exchange_rate" in str(r.json())
-
-    async def test_a_positive_exchange_rate_is_accepted(self, admin):
-        op = await make_operation(admin, exchange_rate=899.27)
-        assert op["payload"]["exchange_rate"] == 899.27
+    async def test_an_exchange_rate_on_the_operation_is_rejected(self, admin):
+        for value in (-5, 899.27):
+            r = await create(admin, exchange_rate=value)
+            assert r.status_code == 422, r.text
+            assert "exchange_rate" in str(r.json())
 
 
 class TestExchangeRateEndpoint:

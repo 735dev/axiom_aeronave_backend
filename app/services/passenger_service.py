@@ -76,6 +76,10 @@ class PassengerService(ProjectService[Ticket]):
                     "document": document,
                     "nationality": item.get("nationality"),
                     "passport_ref": reference,
+                    "is_minor": bool(item.get("is_minor")),
+                    "has_disability": bool(item.get("has_disability")),
+                    "needs_wheelchair": bool(item.get("needs_wheelchair")),
+                    "has_minor_permit": bool(item.get("has_minor_permit")),
                     "name_key": fold_text(name),
                     "document_key": key,
                 }
